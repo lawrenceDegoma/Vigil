@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vigil.local/contracts/incident-event.v1.schema.json",
+  "title": "IncidentEvent v1",
+  "description": "Device-to-cloud message describing an incident lifecycle event produced by the edge state machine. Confidence values are uncalibrated engineering scores, not probabilities.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "event_id", "device_id", "incident_id", "event_type",
+    "signal_type", "severity", "occurred_at", "started_at", "confidence",
+    "rule_version"
+  ],
+  "properties": {
+    "schema_version": { "const": "incident-event.v1" },
+    "event_id": {
+      "type": "string", "format": "uuid",
+      "description": "Idempotency key. Replaying the same event must not create duplicate incidents or notifications."
+    },
+    "device_id": { "type": "string", "minLength": 1, "maxLength": 64 },
+    "incident_id": { "type": "string", "format": "uuid" },
+    "follows_incident_id": {
+      "type": ["string", "null"], "format": "uuid",
+      "description": "Set when this incident is a repeat episode or an escalation of an earlier incident."
+    },
+    "event_type": { "enum": ["incident_opened", "incident_updated", "incident_ended"] },
+    "signal_type": {
+      "enum": ["convulsion", "vomiting", "fall", "prolonged_inactivity"],
+      "description": "Observable pattern, not a diagnosis."
+    },
+    "severity": { "enum": ["warning", "urgent"] },
+    "occurred_at": { "type": "string", "format": "date-time" },
+    "started_at": { "type": "string", "format": "date-time" },
+    "ended_at": { "type": ["string", "null"], "format": "date-time" },
+    "confidence": {
+      "type": "number", "minimum": 0, "maximum": 1,
+      "description": "Peak uncalibrated detector score for the episode so far."
+    },
+    "rule_version": { "type": "string", "minLength": 1 },
+    "features": {
+      "type": "object",
+      "description": "Numeric summary features for retrospective analysis. Never contains image data.",
+      "additionalProperties": { "type": ["number", "string", "boolean", "null"] }
+    }
+  }
+}

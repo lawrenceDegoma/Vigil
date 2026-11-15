@@ -1,0 +1,77 @@
+# Vigil edge configuration — example with the built-in defaults.
+#
+# Every threshold below is an EXPERIMENTAL engineering default chosen to be
+# tuned against labeled footage. None is medically validated.
+# Units: time in seconds; motion/flow are resolution-independent (fractions of
+# the frame, or frame-widths per second).
+# Secrets never belong here — use environment variables (.env).
+
+[subject]
+name = "Subject"     # display name used in alert text, e.g. your dog's name
+profile = "dog"      # severity mapping + wording (see vigil_edge/profiles.py)
+
+[source]
+target_fps = 15.0    # analysis frame rate; inputs are subsampled to this
+
+[preprocess]
+width = 320          # analysis width in pixels
+blur_kernel = 5      # odd; 0 disables
+# Normalized polygon limiting analysis to where the subject usually is.
+# Empty = whole frame. Example: roi = [[0.1, 0.3], [0.9, 0.3], [0.9, 1.0], [0.1, 1.0]]
+roi = []
+
+[motion]
+diff_threshold = 14  # grey-level change that counts as motion
+stabilize = false    # true for handheld footage; false for a fixed camera
+flow = true          # dense optical flow (direction / oscillation features)
+flow_width = 160     # optical-flow resolution (CPU cost control on the Pi)
+min_region_area = 0.0004
+
+[window]
+seconds = 5.0
+step_seconds = 0.5
+activity_floor = 0.004
+band_hz = [1.0, 6.0]       # rhythmic band for convulsion-like motion (< target_fps/2)
+low_band_hz = [0.4, 1.2]   # slow band for retching-like motion
+
+[detectors.convulsion]
+mode = "alert"             # off | shadow | alert
+threshold = 0.5
+onset_seconds = 10.0       # persistence before an incident opens (DESIGN suggests 10–15 s)
+min_active_ratio = 0.6
+active_ratio_ramp = [0.5, 0.9]
+activity_ramp = [0.006, 0.03]
+flow_ramp = [0.02, 0.12]
+periodicity_ramp = [0.12, 0.4]
+rhythm_floor = 0.35
+max_travel = 0.2
+max_camera_motion = 0.35
+max_lighting_change = 0.06
+max_region_area = 0.9
+
+[detectors.vomiting]       # EXPERIMENTAL — shadow mode by default (ADR-005)
+mode = "shadow"
+threshold = 0.55
+onset_seconds = 4.0
+min_active_ratio = 0.6
+active_ratio_ramp = [0.4, 0.8]
+activity_ramp = [0.003, 0.012]
+low_periodicity_ramp = [0.2, 0.5]
+max_activity = 0.08
+max_travel = 0.1
+max_camera_motion = 0.25
+max_lighting_change = 0.06
+
+[incident]
+gap_tolerance_seconds = 3.0
+end_quiet_seconds = 8.0
+merge_gap_seconds = 30.0
+recovery_observation_seconds = 120.0
+early_warning_window_seconds = 600.0
+
+[recording]                # Phase 2 (live capture)
+pre_event_seconds = 30.0
+post_event_seconds = 120.0
+retention_days = 30
+disk_quota_gb = 8.0
+min_free_gb = 2.0

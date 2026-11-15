@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vigil.local/contracts/heartbeat.v1.schema.json",
+  "title": "Heartbeat v1",
+  "description": "Periodic device health report. Status is derived from component checks; a heartbeat alone does not prove camera or detector health. Never contains image data.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "device_id", "sent_at", "software_version", "maintenance", "camera", "detector", "storage", "queue_depth"],
+  "properties": {
+    "schema_version": { "const": "heartbeat.v1" },
+    "device_id": { "type": "string", "minLength": 1, "maxLength": 64 },
+    "sent_at": { "type": "string", "format": "date-time" },
+    "software_version": { "type": "string" },
+    "maintenance": { "type": "boolean" },
+    "camera": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ok", "last_frame_at", "fps"],
+      "properties": {
+        "ok": { "type": "boolean" },
+        "last_frame_at": { "type": ["string", "null"], "format": "date-time" },
+        "fps": { "type": "number", "minimum": 0 },
+        "dropped_frames": { "type": "integer", "minimum": 0 },
+        "error": { "type": ["string", "null"] }
+      }
+    },
+    "detector": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ok", "last_window_at", "processing_fps"],
+      "properties": {
+        "ok": { "type": "boolean" },
+        "last_window_at": { "type": ["string", "null"], "format": "date-time" },
+        "processing_fps": { "type": "number", "minimum": 0 },
+        "rule_version": { "type": "string" },
+        "error": { "type": ["string", "null"] }
+      }
+    },
+    "storage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["free_bytes", "total_bytes"],
+      "properties": {
+        "free_bytes": { "type": "integer", "minimum": 0 },
+        "total_bytes": { "type": "integer", "minimum": 0 },
+        "recordings_bytes": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "queue_depth": { "type": "integer", "minimum": 0 },
+    "temperature_c": { "type": ["number", "null"] },
+    "cpu_percent": { "type": ["number", "null"], "minimum": 0 },
+    "memory_used_percent": { "type": ["number", "null"], "minimum": 0, "maximum": 100 }
+  }
+}

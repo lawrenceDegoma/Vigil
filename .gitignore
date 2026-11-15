@@ -1,0 +1,40 @@
+# Secrets — never commit
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Private footage and analysis output — never commit
+data/
+recordings/
+runs/
+*.mp4
+*.mov
+*.avi
+*.mkv
+*.h264
+*.MOV
+*.MP4
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+build/
+dist/
+.coverage
+htmlcov/
+
+# Node
+node_modules/
+apps/web/dist/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
