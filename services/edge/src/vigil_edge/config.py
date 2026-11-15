@@ -76,8 +76,13 @@ class MotionConfig:
     flow: bool = True  # dense optical flow for direction/oscillation features
     flow_width: int = 160  # optical flow runs at this width to bound CPU cost
     min_region_area: float = 0.0004  # ignore moving blobs smaller than this fraction of frame
+    # Second, lagged difference for slow movements (e.g. heaving) that move too
+    # little between consecutive frames to register. 0 disables.
+    slow_lag_seconds: float = 0.25
 
     def __post_init__(self) -> None:
+        if not (0.0 <= self.slow_lag_seconds <= 2.0):
+            raise ConfigError("motion.slow_lag_seconds must be within [0, 2]")
         if not (1 <= self.diff_threshold <= 255):
             raise ConfigError("motion.diff_threshold must be within [1, 255]")
         if not (32 <= self.flow_width <= 640):
@@ -116,10 +121,10 @@ class ConvulsionConfig:
     periodicity_ramp: Range = (0.12, 0.4)
     rhythm_floor: float = 0.35  # score multiplier when no rhythm is found (irregular jerks)
     # Suppressions (each blocks the window outright)
-    max_travel: float = 0.2  # walking/running moves the region across the frame
-    max_camera_motion: float = 0.35  # frame-widths/s of residual camera movement
+    max_travel: float = 0.1  # walking/running moves the region across the frame
+    max_camera_motion: float = 0.05  # frame-widths/s; a fixed camera should not move
     max_lighting_change: float = 0.06  # per-frame brightness jump
-    max_region_area: float = 0.9  # motion covering nearly everything = scene-wide change
+    max_region_area: float = 0.6  # motion over most of the frame = scene-wide change
 
     def __post_init__(self) -> None:
         _validate_detector("convulsion", self.threshold, self.onset_seconds, self.min_active_ratio)
@@ -134,15 +139,18 @@ class VomitingConfig:
     """EXPERIMENTAL: slow rhythmic heaving while stationary. Expected to be noisy."""
 
     mode: DetectorMode = DetectorMode.SHADOW
-    threshold: float = 0.55
+    threshold: float = 0.35
     onset_seconds: float = 4.0
     min_active_ratio: float = 0.6
-    active_ratio_ramp: Range = (0.4, 0.8)
-    activity_ramp: Range = (0.003, 0.012)
-    low_periodicity_ramp: Range = (0.2, 0.5)
+    # Ramps apply to the lagged ("slow") motion channel. Heaving has still
+    # phases between contractions, so the active ratio is naturally ~0.5.
+    active_ratio_ramp: Range = (0.2, 0.5)
+    activity_ramp: Range = (0.001, 0.004)
+    low_periodicity_ramp: Range = (0.15, 0.4)
     max_activity: float = 0.08  # vigorous motion is something else (play, convulsion)
-    max_travel: float = 0.1
-    max_camera_motion: float = 0.25
+    max_flow: float = 0.08  # frame-widths/s; heaving is slow, shaking/walking is fast
+    max_travel: float = 0.06
+    max_camera_motion: float = 0.05
     max_lighting_change: float = 0.06
 
     def __post_init__(self) -> None:

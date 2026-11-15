@@ -45,6 +45,9 @@ target-version = "py311"
 select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF"]
 ignore = ["RUF001", "RUF002", "RUF003"]
 
+[tool.ruff.lint.isort]
+known-first-party = ["vigil_edge", "helpers"]
+
 [tool.mypy]
 python_version = "3.11"
 strict = true
@@ -52,6 +55,9 @@ warn_unused_ignores = true
 ignore_missing_imports = true
 files = ["src"]
 
+# OpenCV's bundled stubs are imprecise about numpy dtypes; treat cv2 as untyped
+# and keep our own array annotations at module boundaries.
 [[tool.mypy.overrides]]
 module = ["cv2", "cv2.*", "picamera2", "picamera2.*", "matplotlib", "matplotlib.*"]
 ignore_missing_imports = true
+follow_imports = "skip"

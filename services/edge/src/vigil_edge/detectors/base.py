@@ -37,6 +37,10 @@ class Detector(ABC):
     def score(self, window: WindowFeatures) -> tuple[float, tuple[str, ...], dict[str, float]]:
         """Return (score, suppression reasons, component scores)."""
 
+    def coverage(self, window: WindowFeatures) -> float:
+        """Fraction of the window in which this detector's motion is present."""
+        return window.active_ratio
+
     def evaluate(self, window: WindowFeatures) -> DetectionResult:
         score, suppressed, components = self.score(window)
         active = self.mode is not DetectorMode.OFF and not suppressed and score >= self.threshold
@@ -48,4 +52,5 @@ class Detector(ABC):
             active=active,
             suppressed_by=suppressed,
             components={k: round(v, 4) for k, v in components.items()},
+            coverage=round(self.coverage(window), 4),
         )

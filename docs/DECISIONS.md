@@ -43,3 +43,11 @@ A signal must persist for `onset_seconds` (with short gaps tolerated) before an 
 ### ADR-010 — Remote clip delivery
 **Status:** proposed — owner decision needed before Phase 3
 Options: (a) secure outbound tunnel (e.g. Tailscale or Cloudflare Tunnel) with an authenticated clip gateway on the Pi; (b) encrypted, event-only upload of incident clips to private Supabase Storage with short-lived signed URLs. (b) is simpler for family members and survives the Pi going offline, at the cost of incident clips leaving the house. (a) keeps footage local but fails when the Pi is unreachable. A recommendation will be made with cost estimates at the start of Phase 3.
+
+### ADR-011 — Phase 1 thresholds were calibrated on synthetic footage
+**Status:** accepted (2026-11-14)
+During Phase 1 the following defaults were set by inspecting feature distributions on the synthetic scenarios: convulsion `max_travel` 0.2 → 0.1, `max_camera_motion` 0.35 → 0.05, `max_region_area` 0.9 → 0.6. The vomiting detector moved to the lagged "slow" motion channel, with ramps `activity` (0.001, 0.004), `active_ratio` (0.2, 0.5), `low_periodicity` (0.15, 0.4), a `max_flow` 0.08 suppression and threshold 0.35. Synthetic evaluation results are therefore **regression baselines, not accuracy estimates**. Real thresholds must come from the owner's footage (positive episode plus ordinary-day negatives) and be recorded here with the dataset used.
+
+### ADR-012 — Lagged ("slow") motion channel
+**Status:** accepted (2026-11-14)
+At 15 fps, slow movements (abdominal heaving, slow rolling) move ~1 px between consecutive analysis frames and vanish under the difference threshold. A second difference against the frame `slow_lag_seconds` (0.25 s) earlier costs one extra `absdiff` per frame and makes these movements measurable. It is not camera-compensated, so with `stabilize` it falls back to the consecutive-frame value.

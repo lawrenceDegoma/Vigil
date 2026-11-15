@@ -63,6 +63,7 @@ class FrameFeatures:
     index: int
     timestamp: float
     motion_fraction: float  # moving pixels / ROI pixels
+    slow_motion_fraction: float  # same, against a frame ``slow_lag_seconds`` earlier
     flow_dx: float  # mean residual flow of moving pixels, in frame-widths per second
     flow_dy: float
     flow_magnitude: float  # mean residual flow magnitude, frame-widths per second
@@ -84,6 +85,8 @@ class WindowFeatures:
     sample_rate: float
     activity: float  # mean motion_fraction
     active_ratio: float  # fraction of frames with motion above the activity floor
+    slow_activity: float  # mean slow_motion_fraction
+    slow_active_ratio: float
     flow_magnitude: float  # mean residual flow magnitude
     periodicity: float  # 0..1 spectral concentration in the analysis band
     dominant_hz: float  # frequency of the strongest in-band peak (0 if none)
@@ -109,6 +112,9 @@ class DetectionResult:
     score: float  # 0..1, uncalibrated
     active: bool  # score >= threshold and no suppression
     suppressed_by: tuple[str, ...] = ()
+    # Fraction of the window showing this detector's kind of motion; used to
+    # estimate when the signal began within the first active window.
+    coverage: float = 1.0
     components: dict[str, float] = field(default_factory=dict)
 
 
@@ -166,3 +172,13 @@ class ShadowDetection:
     signal_type: SignalType
     started_at: float
     peak_score: float
+
+
+@dataclass(frozen=True, slots=True)
+class Label:
+    """Ground-truth annotation of an event in footage (stream offsets)."""
+
+    signal_type: SignalType
+    start: float
+    end: float
+    note: str = ""

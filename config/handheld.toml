@@ -1,11 +1,17 @@
 # Overrides for analyzing handheld phone footage (e.g. a recorded episode).
-# Camera stabilization compensates for hand movement before measuring motion;
-# camera-motion suppression is relaxed because residual shake remains.
+# Stabilization warps each previous frame onto the current one before motion
+# is measured. Camera-motion suppression is relaxed (a handheld camera always
+# moves) and close-ups may fill most of the frame.
 # Unspecified keys keep the built-in defaults.
 
 [motion]
 stabilize = true
 
 [detectors.convulsion]
-max_camera_motion = 0.8
-max_travel = 0.35
+max_camera_motion = 1.5
+max_travel = 0.25
+max_region_area = 0.95
+
+[detectors.vomiting]
+max_camera_motion = 1.5
+max_travel = 0.15

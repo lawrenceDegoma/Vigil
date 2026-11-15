@@ -6,8 +6,9 @@ Implement [`docs/DESIGN.md`](docs/DESIGN.md) as a privacy-first, experimental **
 ## Current stage
 - Design accepted by the owner on 2026-11-14 (implementation authorized).
 - **Phase 0 — foundation: done.** Repo layout, contracts, config, core interfaces.
-- **Phase 1 — offline detection prototype: in progress.**
-- Hardware is not assembled; the Pi is not set up. All development runs on the owner's Apple Silicon Mac against video files and synthetic scenarios.
+- **Phase 1 — offline detection prototype: done** (validated on synthetic footage only — see `docs/DETECTION.md` §5 and ADR-011).
+- **Next: Phase 2** — Picamera2 source, live loop, circular buffer + event clips, systemd, health heartbeat, Pi 3 benchmark. In parallel, analyze the owner's real seizure recording on the Mac (`docs/DETECTION.md` §7) and collect negative footage.
+- Hardware is not assembled; the Pi is not set up. The owner has a ~3 min handheld recording of a real episode (not yet provided; must stay in gitignored `data/`).
 
 ## Phases (owner's numbering — ADR-002)
 | Phase | Scope | Gate |
@@ -45,9 +46,18 @@ services/edge/             # Python edge service (uv project, src layout)
     config.py              # strict TOML → dataclass config, rule_version hash
     profiles.py            # subject profiles: severity map + alert wording
     clock.py               # injectable clocks (System/Fake)
-    sources/               # FrameSource interface + backends
-    detectors/             # Detector interface + per-signal detectors
-  tests/
+    sources/               # FrameSource: video_file, synthetic (scenarios + labels); picamera2 in Phase 2
+    preprocess.py          # resize/grey/blur/ROI mask
+    motion.py              # per-frame features: camera motion, diff masks (fast + lagged), region, flow
+    windowing.py           # sliding-window features: persistence, spectral rhythm, travel
+    detectors/             # Detector base + convulsion (alert) + vomiting (experimental, shadow)
+    incidents.py           # incident state machine (persistence, dedup, escalation, recovery)
+    pipeline.py            # orchestration, observers, per-stage timing
+    outputs.py overlay.py plotting.py   # CSV/JSONL/summary, debug video, timeline PNG
+    evaluation.py          # labels + event-level metrics (recall, false alerts, latency)
+    contracts.py           # IncidentEvent → incident-event.v1 message
+    cli.py                 # `vigil analyze | evaluate | synth | config`
+  tests/                   # unit + integration (synthetic end-to-end); helpers.py builders
 services/backend/          # Phase 3
 supabase/                  # Phase 3 migrations/policies
 apps/web/                  # Phase 4
@@ -57,8 +67,12 @@ scripts/                   # reproducible dev scripts
 ## Commands
 ```bash
 make setup      # uv sync (Python 3.11) incl. plot extra
-make check      # ruff + mypy --strict + pytest
+make check      # ruff + mypy --strict + pytest (~40 s)
 make test-fast  # skip slow end-to-end tests
+make demo       # synthetic day → analyze (plot+overlay) → synthetic evaluation
+make analyze VIDEO=path ARGS="--plot --overlay"   # any video; handheld: -c config/handheld.toml
+uv run --project services/edge vigil evaluate --synthetic   # regression baseline
+uv run --project services/edge vigil config --set key=value # effective config + rule_version
 ```
 
 ## Conventions
@@ -69,6 +83,10 @@ make test-fast  # skip slow end-to-end tests
 - Config: TOML, unknown keys rejected, every threshold documented as an experimental default (ADR-004). Detection-relevant settings feed `rule_version`.
 - Detectors run in `off`/`shadow`/`alert` mode (ADR-005). Vomiting defaults to `shadow`.
 - Generic vocabulary in core code: subject, profile, signal type, detector, severity. Dog-specific text lives in `profiles.py`/config.
+- Detectors are stateless window scorers; all temporal logic (persistence, dedup, escalation) lives in `incidents.py`. A candidate confirms only on an *active* window.
+- Features are resolution-independent (fractions of frame, frame-widths/s) so thresholds survive resolution/fps changes.
+- When changing detection defaults: update `config/vigil.example.toml` (a test enforces it matches defaults), re-run `vigil evaluate --synthetic`, and record the change + data used in an ADR. Synthetic results are regression baselines, never accuracy claims.
+- Synthetic scenario tests guard behaviour (no incidents on normal activity; one incident per episode; repeat episodes linked). Don't "fix" a failing scenario test by loosening it without understanding the behaviour change.
 - Record non-obvious decisions as ADRs in `docs/DECISIONS.md`.
 - Commit each completed phase separately; push to `origin` (github.com/lawrenceDegoma/Vigil).
 
