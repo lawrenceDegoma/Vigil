@@ -147,6 +147,8 @@ class IncidentStateMachine:
             if cand is None:
                 # Onset estimate: the active portion of the first active window.
                 onset = t - max(r.coverage, 0.1) * self.window_seconds
+                if window is not None:  # never before the window (or stream) began
+                    onset = max(onset, window.t_start)
                 cand = track.candidate = _Candidate(onset=onset, last_active=t)
             cand.last_active = t
             cand.active_windows += 1

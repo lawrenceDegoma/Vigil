@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import itertools
+from dataclasses import replace
 
 import pytest
 
@@ -213,3 +214,16 @@ def test_events_carry_snapshots_not_live_objects() -> None:
     outs = drive(fsm, 60, conv=[(10, 40)])
     opened = events(outs, IncidentEventType.OPENED)[0]
     assert opened.incident.ended_at is None  # later end must not mutate the emitted event
+
+
+def test_onset_estimate_never_precedes_window_start() -> None:
+    fsm = make_fsm()
+    full = window(t_start=0.0, t_end=5.0, active_ratio=1.0)
+    outs: list[Output] = []
+    t = 5.0
+    while t <= 30:
+        r = result("convulsion", True)
+        outs += fsm.update(t, [replace(r, coverage=1.0)], replace(full, t_start=t - 5, t_end=t))
+        t += STEP
+    inc = events(outs, IncidentEventType.OPENED)[0].incident
+    assert inc.started_at == pytest.approx(0.0)

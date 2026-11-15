@@ -62,7 +62,7 @@ Hypothesis: retching shows as **slow (0.4–1.2 Hz), repeated heaving while stat
 
 Notification rate limiting and reminders belong to the Phase 3 notifier, not to detection.
 
-## 5. Results so far (synthetic only)
+## 5. Results so far
 
 `vigil evaluate --synthetic` with default config, `motion-rules-0.1.0+c1e1f72e`, measured 2026-11-14 on an Apple M4 Pro:
 
@@ -71,6 +71,28 @@ Notification rate limiting and reminders belong to the Phase 3 notifier, not to 
 | 12 fixed-camera scenarios (rest, walk, scratch, shake-off, lighting, camera shake/bump, person, retch, cluster, pause, mixed) | 19.0 min | 5/5 labeled episodes detected, 0 false alerts, latency 10.1–10.4 s | 1/1 detected, 0 false |
 | `handheld` with `config/handheld.toml` | 1.7 min | 1/1, 0 false | — |
 | `handheld` with fixed-camera defaults | 1.7 min | 1/1 | **2 false** (hand sway read as slow heaving) |
+
+### 5.1 First real recording (owner's footage, 2026-11-14)
+
+One owner-provided recording of a real episode was analyzed **locally only**. The footage and its label file stay in gitignored `data/private/`.
+
+**Footage:** handheld phone video, about 2:55, outdoors on a walk. Close-up, with the subject on a leash and lying on its side. Recording starts *mid-episode*. Paddling is visible from the first frame to about 68 s. After that the subject lies still, gets up around 84 s, and the rest is post-episode walking and lying with the phone moving. **Label:** convulsion 0–68 s. This is a provisional visual estimate and not yet owner-confirmed.
+
+Results with `config/handheld.toml` (`motion-rules-0.1.0+74e55392`):
+
+| Window segment | Activity (median) | Flow fw/s | Rhythm | Dominant Hz | Camera fw/s | Windows active |
+|---|---|---|---|---|---|---|
+| Episode 5–68 s | 0.101 | 0.48 | 0.36 | mostly 2.5–4 | 0.17 | 94 % |
+| Still / getting up 68–85 s | 0.058 | 0.31 | 0.38 | 1.1 | 0.31 | 91 % |
+| Phone moving, sidewalk 85–130 s | 0.013 | 0.17 | 0.38 | 1.4 | 0.29 | 22 % |
+| Post-episode walk/lie 130–175 s | 0.006 | 0.09 | 0.46 | 2.4 | 0.09 | 19 % |
+
+- **Detected:** one urgent incident confirmed **10.0 s after recording start**. True onset preceded the recording, so latency from real onset can't be measured. Requiring rhythm (`rhythm_floor=0`) still detects it at 10.5 s; `onset_seconds=15` detects at 14.8 s.
+- **Real rhythm is less clean than synthetic.** Spectral concentration has a median of 0.36, versus about 0.7 on synthetic shaking. Detection was carried mostly by persistence and intensity. This supports not making rhythm a hard requirement.
+- **Fixed-camera defaults miss this clip (0/1)** because hand motion exceeds `max_camera_motion`. That's expected; handheld footage needs `config/handheld.toml`.
+- **The incident ran long:** it ended at 85 s, then resumed at 124 s within the merge gap and ended at 129 s. The overlay shows the post-episode activity is mainly the **swinging leash** in the foreground, plus the subject getting up and residual camera motion. This is a handheld-on-a-walk artifact that a fixed indoor camera wouldn't have. Episode-end timing from this clip is therefore not meaningful.
+- **Scale differs from deployment.** At this close range the moving region covers about 57 % of the frame, and a fixed living-room camera will see far smaller numbers. **No thresholds were changed based on this clip.** It shows that a real episode produces a strong, sustained response. It says nothing about false alarms in a fixed indoor setting.
+- With stabilization on, textured footage analyzed at 174 fps on the Mac. The Pi will run without stabilization (fixed mount).
 
 **What this does and doesn't show.** The synthetic scenes were designed alongside the rules and some thresholds were calibrated on them (ADR-011), so these numbers are regression baselines, not accuracy estimates. They show that the plumbing works:
 
