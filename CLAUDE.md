@@ -8,7 +8,7 @@ Implement [`docs/DESIGN.md`](docs/DESIGN.md) as a privacy-first, experimental **
 - **Phase 0 — foundation: done.** Repo layout, contracts, config, core interfaces.
 - **Phase 1 — offline detection prototype: done** (validated on synthetic footage only — see `docs/DETECTION.md` §5 and ADR-011).
 - **Next: Phase 2** — Picamera2 source, live loop, circular buffer + event clips, systemd, health heartbeat, Pi 3 benchmark. In parallel, analyze the owner's real seizure recording on the Mac (`docs/DETECTION.md` §7) and collect negative footage.
-- Hardware is not assembled; the Pi is not set up. The owner's ~3 min handheld recording of a real episode is in gitignored `data/private/` with a provisional label file (0–68 s convulsion, visual estimate, awaiting owner confirmation). Findings: `docs/DETECTION.md` §5.1. Never commit, upload, or describe identifying details of this footage.
+- Hardware is not assembled; the Pi is not set up. The owner's ~3 min handheld recording of a real episode is in gitignored `data/private/` with a provisional label file (0–68 s convulsion, visual estimate, awaiting owner confirmation). Three short negative behavior clips (petting/belly rub, chest scratch, chewing) are also there. Findings: `docs/DETECTION.md` §5.1–5.2. Key open problem: per-window motion features can't separate chewing/petting from the episode; only duration does. Never commit, upload, or describe identifying details of this footage.
 
 ## Phases (owner's numbering — ADR-002)
 | Phase | Scope | Gate |

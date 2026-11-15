@@ -94,6 +94,30 @@ Results with `config/handheld.toml` (`motion-rules-0.1.0+74e55392`):
 - **Scale differs from deployment.** At this close range the moving region covers about 57 % of the frame, and a fixed living-room camera will see far smaller numbers. **No thresholds were changed based on this clip.** It shows that a real episode produces a strong, sustained response. It says nothing about false alarms in a fixed indoor setting.
 - With stabilization on, textured footage analyzed at 174 fps on the Mac. The Pi will run without stabilization (fixed mount).
 
+### 5.2 Owner-provided ordinary-behavior clips (2026-11-14)
+
+Three short handheld indoor clips (5, 10 and 15 s) of behaviors the owner expects could cause false alarms. All are labeled negative, with labels in `data/private/`:
+
+1. Belly rub by a human hand, rolling and twisting, then head scratches (15 s).
+2. Chest scratch in dim light, then licking or nuzzling (5 s).
+3. Chewing a bone while lying down and being petted (10 s).
+
+All used `config/handheld.toml`. **No incidents or shadow detections.** That result is uninformative on its own, because every clip is at or below the 10 s persistence requirement. The window-level comparison is the useful part:
+
+| Clip | Windows active | Median score | Longest active run | Dominant Hz |
+|---|---|---|---|---|
+| Real episode 0–68 s | 94 % | 0.89 | 62.4 s | 3.3 |
+| Chewing + petting | **100 %** | 0.79 | 5.3 s (whole analyzable clip) | 1.2 |
+| Belly rub + rolling | 40 % | 0.77 | 2.1 s (broken by lighting/locomotion suppressions) | 2.9 |
+| Chest scratch | 0 % | 0.49 | — | 3.0 |
+
+**Finding:** per-window motion features do **not** separate these behaviors from the real episode. **Duration is the only thing that does**, so chewing or vigorous petting lasting over about 10 s would very likely produce a false urgent alert with the current rules. Restricting the rhythm band to 2–6 Hz (the episode is 97 % ≥ 2 Hz; chewing peaks around 1.2 Hz) barely helps: chewing is still 91 % active, because intensity and persistence carry the score. The synthetic regression set is unchanged either way. **Defaults were not changed.** One positive and three short negatives can't justify tuning, and all four are handheld close-ups unlike the deployment view.
+
+Directions this points to, to be evaluated on fixed-camera footage before adoption:
+- **Human interaction context.** A person's hand is in frame in all three negatives. Detecting a person touching or next to the subject could suppress or downgrade an alert, since someone is already present. This needs a person or hand detector whose Pi 3 cost is unmeasured (Phase 2 benchmark), and it is a product decision: a seizure *while* someone is present still matters to other family members.
+- **Spatial pattern.** The episode involves whole-body motion with paddling limbs. Chewing is concentrated at the head. With a fixed camera, a background model (e.g. MOG2) can segment the resting subject, and "fraction of the subject's silhouette moving" could separate localized from whole-body motion.
+- **Posture.** Side-lying during the episode versus lying on the chest while chewing needs a pose or shape model. Deferred (ADR-006).
+
 **What this does and doesn't show.** The synthetic scenes were designed alongside the rules and some thresholds were calibrated on them (ADR-011), so these numbers are regression baselines, not accuracy estimates. They show that the plumbing works:
 
 - persistence filters short rhythmic behaviors;
@@ -113,7 +137,7 @@ Real footage will be harder.
 3. **Occlusion and out-of-frame events are missed.** A seizure behind furniture or out of view produces nothing.
 4. **Low light.** No IR or night handling yet. Auto-exposure jumps are suppressed per window, which can delay detection by one window length.
 5. **Tonic phases** (rigid, little motion) are invisible to motion analysis. Detection relies on the clonic (shaking/paddling) phase.
-6. **Long scratching, vigorous play in place, or grooming** lasting > 10 s may trigger. This is the main expected false-alarm source; it needs real "normal day" footage to quantify.
+6. **Chewing, being petted or rubbed, long scratching, vigorous play in place, or grooming** lasting > 10 s will likely trigger. Owner clips show these are indistinguishable from the real episode per window (§5.2). This is the main expected false-alarm source; quantifying it needs longer fixed-camera footage.
 7. **Handheld footage** requires `config/handheld.toml`. Stabilization can partially cancel subject motion when the subject fills most of the frame.
 8. **Vomiting detection is weak.** Slow heaving is subtle, and it overlaps with panting and eating. It stays in shadow mode until real shadow-mode data justifies promotion.
 9. **Latency floor ≈ `onset_seconds`** (10 s) by design, trading speed for fewer false alarms. DESIGN suggests 10–15 s.
