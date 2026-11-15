@@ -7,7 +7,8 @@ Implement [`docs/DESIGN.md`](docs/DESIGN.md) as a privacy-first, experimental **
 - Design accepted by the owner on 2026-11-14 (implementation authorized).
 - **Phase 0 — foundation: done.** Repo layout, contracts, config, core interfaces.
 - **Phase 1 — offline detection prototype: done** (validated on synthetic footage only — see `docs/DETECTION.md` §5 and ADR-011).
-- **Next: Phase 2** — Picamera2 source, live loop, circular buffer + event clips, systemd, health heartbeat, Pi 3 benchmark. In parallel, analyze the owner's real seizure recording on the Mac (`docs/DETECTION.md` §7) and collect negative footage.
+- **Phase 2 — Pi integration: software complete, gate pending hardware.** Picamera2 dual-stream source + hardware-encoder circular clip backend (tested against fakes only), software ring recorder, clip manager, SQLite store/outbox, retention, health/heartbeats, systemd unit + watchdog, maintenance mode, `vigil run|bench|clips|health|maintenance`, installer (`deploy/pi/`), `docs/PI_SETUP.md`. **Not yet run on a Pi**; gate = PI_SETUP §4 benchmark + §6 soak/fault checklist.
+- **Next:** Pi bring-up and benchmark when hardware is ready; evaluate owner's fixed-vantage negative footage (ADR-013 work); then Phase 3.
 - Hardware is not assembled; the Pi is not set up. The owner's ~3 min handheld recording of a real episode is in gitignored `data/private/` with a provisional label file (0–68 s convulsion, visual estimate, awaiting owner confirmation). Three short negative behavior clips (petting/belly rub, chest scratch, chewing) are also there. Findings: `docs/DETECTION.md` §5.1–5.2. Key open problem: per-window motion features can't separate chewing/petting/scratch-reflex from the episode; only duration does. Owner domain knowledge (ADR-013): family steps back during an episode (human contact ⇒ evidence against), and episode paddling is multi-limb vs the one-leg scratch reflex. Owner is recording fixed-vantage negative footage. Never commit, upload, or describe identifying details of this footage.
 
 ## Phases (owner's numbering — ADR-002)
@@ -46,7 +47,7 @@ services/edge/             # Python edge service (uv project, src layout)
     config.py              # strict TOML → dataclass config, rule_version hash
     profiles.py            # subject profiles: severity map + alert wording
     clock.py               # injectable clocks (System/Fake)
-    sources/               # FrameSource: video_file, synthetic (scenarios + labels); picamera2 in Phase 2
+    sources/               # FrameSource: video_file, synthetic, live (webcam/paced/looping), picamera2_source (+ hardware clip backend)
     preprocess.py          # resize/grey/blur/ROI mask
     motion.py              # per-frame features: camera motion, diff masks (fast + lagged), region, flow
     windowing.py           # sliding-window features: persistence, spectral rhythm, travel
@@ -56,11 +57,18 @@ services/edge/             # Python edge service (uv project, src layout)
     outputs.py overlay.py plotting.py   # CSV/JSONL/summary, debug video, timeline PNG
     evaluation.py          # labels + event-level metrics (recall, false alerts, latency)
     contracts.py           # IncidentEvent → incident-event.v1 message
-    cli.py                 # `vigil analyze | evaluate | synth | config`
+    recording.py           # clip backends (software ring) + ClipManager (pre/post buffer, split, hash)
+    store.py               # SQLite: clip index + durable outbox (idempotent, bounded)
+    retention.py           # pure retention planner (expiry, quota, free-space reserve) + executor
+    health.py system.py systemd.py   # heartbeats, host metrics, sd_notify/watchdog
+    service.py             # `vigil run`: sessions, reconnect backoff, housekeeping thread, maintenance
+    bench.py               # offline + live-camera benchmarks
+    cli.py                 # `vigil analyze | evaluate | synth | config | run | bench | clips | health | maintenance`
   tests/                   # unit + integration (synthetic end-to-end); helpers.py builders
 services/backend/          # Phase 3
 supabase/                  # Phase 3 migrations/policies
 apps/web/                  # Phase 4
+deploy/pi/                 # install.sh, vigil-edge.service (Type=notify, watchdog, hardened), journald limits
 scripts/                   # reproducible dev scripts
 ```
 
@@ -73,6 +81,9 @@ make demo       # synthetic day → analyze (plot+overlay) → synthetic evaluat
 make analyze VIDEO=path ARGS="--plot --overlay"   # any video; handheld: -c config/handheld.toml
 uv run --project services/edge vigil evaluate --synthetic   # regression baseline
 uv run --project services/edge vigil config --set key=value # effective config + rule_version
+make simulate   # live service on looping synthetic input (data/edge-sim)
+make bench      # offline analysis benchmark (on the Pi: see docs/PI_SETUP.md)
+make pi-compat  # full tests on Debian Bookworm arm64 + apt OpenCV 4.6/NumPy 1.24 (Docker) — run before Pi deploys
 ```
 
 ## Conventions
@@ -89,6 +100,9 @@ uv run --project services/edge vigil config --set key=value # effective config +
 - Synthetic scenario tests guard behaviour (no incidents on normal activity; one incident per episode; repeat episodes linked). Don't "fix" a failing scenario test by loosening it without understanding the behaviour change.
 - Record non-obvious decisions as ADRs in `docs/DECISIONS.md`.
 - Commit each completed phase separately; push to `origin` (github.com/lawrenceDegoma/Vigil).
+- Pi runtime deps come from apt (picamera2, OpenCV, NumPy); never let pip replace them (ADR-014). Keep code compatible with NumPy ≥ 1.24 / OpenCV ≥ 4.6.
+- Picamera2/libcamera are imported lazily and only in `sources/picamera2_source.py`; test it with fakes. Never hot-plug the CSI camera.
+- Service invariants (ADR-015): camera failure ends the session and closes incidents (`stream_end`); watchdog fed only on capture progress or deliberate backoff; maintenance exports nothing; outbox never drops incident events.
 
 ## Safety and privacy rules
 - Never upload raw living-room video, sample footage, phone numbers, or secrets to third-party services without explicit approval.

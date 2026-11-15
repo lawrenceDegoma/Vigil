@@ -2,7 +2,7 @@
 EDGE := services/edge
 UV   := uv --directory $(EDGE)
 
-.PHONY: help setup test test-fast lint format typecheck check demo analyze evaluate clean
+.PHONY: help setup test test-fast lint format typecheck check demo analyze evaluate bench simulate pi-compat clean
 
 help:
 	@echo "setup      install the edge dev environment (uv, Python 3.11)"
@@ -15,6 +15,9 @@ help:
 	@echo "demo       generate a synthetic scenario and analyze it (writes runs/demo)"
 	@echo "analyze    VIDEO=path [ARGS='--plot --overlay'] analyze a video file"
 	@echo "evaluate   run the synthetic evaluation set"
+	@echo "bench      offline analysis benchmark on this machine"
+	@echo "simulate   run the live service on a looping synthetic scenario (Ctrl-C to stop)"
+	@echo "pi-compat  run tests on Debian Bookworm arm64 with apt OpenCV/NumPy (Docker)"
 
 setup:
 	$(UV) sync --python 3.11 --extra plot
@@ -47,6 +50,15 @@ analyze:
 
 evaluate:
 	uv run --project $(EDGE) vigil evaluate --synthetic
+
+bench:
+	uv run --project $(EDGE) vigil bench
+
+pi-compat:
+	./scripts/pi-compat-test.sh
+
+simulate:
+	uv run --project $(EDGE) vigil run --source synthetic:mixed --loop --data-dir data/edge-sim
 
 clean:
 	rm -rf runs $(EDGE)/.pytest_cache $(EDGE)/.mypy_cache $(EDGE)/.ruff_cache

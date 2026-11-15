@@ -1,0 +1,53 @@
+# Vigil edge monitoring service (Raspberry Pi). Installed by deploy/pi/install.sh.
+[Unit]
+Description=Vigil edge monitoring (camera capture, motion analysis, incidents)
+Documentation=https://github.com/lawrenceDegoma/Vigil/blob/main/docs/PI_SETUP.md
+# Monitoring must start without internet; do not wait for the network.
+After=local-fs.target
+# Never stop retrying after repeated failures.
+StartLimitIntervalSec=0
+
+[Service]
+Type=notify
+NotifyAccess=main
+User=vigil
+Group=vigil
+SupplementaryGroups=video render
+EnvironmentFile=/etc/vigil/vigil.env
+ExecStart=/opt/vigil/venv/bin/vigil run --config /etc/vigil/vigil.toml
+Restart=always
+RestartSec=5
+# The service feeds the watchdog only while the capture loop makes progress
+# (or is deliberately backing off), so a hung camera stack gets restarted.
+WatchdogSec=60
+TimeoutStartSec=90
+TimeoutStopSec=30
+MemoryMax=700M
+
+# Hardening. Not PrivateDevices: the camera needs /dev/video*, /dev/media*, /dev/dma_heap.
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ReadWritePaths=/var/lib/vigil
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+RestrictRealtime=yes
+ProtectClock=yes
+ProtectHostname=yes
+ProtectKernelLogs=yes
+ProtectProc=invisible
+RestrictNamespaces=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+SystemCallArchitectures=native
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
+UMask=0027
+# Candidates to evaluate on real hardware (may break libcamera/V4L2 if wrong):
+# SystemCallFilter=@system-service, MemoryDenyWriteExecute=yes, PrivateUsers=yes
+
+[Install]
+WantedBy=multi-user.target

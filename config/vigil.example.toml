@@ -71,9 +71,36 @@ merge_gap_seconds = 30.0
 recovery_observation_seconds = 120.0
 early_warning_window_seconds = 600.0
 
-[recording]                # Phase 2 (live capture)
+[recording]                # event-only clips + retention (DESIGN §5.3)
+enabled = true
 pre_event_seconds = 30.0
 post_event_seconds = 120.0
-retention_days = 30
-disk_quota_gb = 8.0
-min_free_gb = 2.0
+max_clip_seconds = 600.0   # longer episodes continue in a new clip
+record_shadow = true       # short clips for shadow detections, for review
+retention_days = 30        # ordinary clips expire; admin-preserved clips are kept
+disk_quota_gb = 8.0        # oldest unpreserved clips deleted beyond this
+min_free_gb = 2.0          # keep this much free on the data volume
+software_width = 640       # software recorder only (non-Picamera2 sources)
+software_jpeg_quality = 80
+
+[camera]                   # Phase 2: live capture
+backend = "picamera2"      # picamera2 | opencv (USB webcam for development)
+device = 0                 # opencv device index
+fps = 15.0
+main_size = [1280, 720]    # recorded by the hardware H.264 encoder
+analysis_size = [320, 180] # lores stream used for analysis
+bitrate = 2000000
+hflip = false
+vflip = false
+autofocus = "once"         # once | continuous | manual — continuous AF can hunt and mimic motion
+lens_position = 1.0        # dioptres, for autofocus = "manual" (1.0 ≈ 1 m)
+
+[service]                  # Phase 2: long-running service
+device_id = "dev-device"   # overridden by VIGIL_DEVICE_ID
+data_dir = "./data/edge"   # overridden by VIGIL_DATA_DIR
+heartbeat_seconds = 60.0
+housekeeping_seconds = 300.0
+camera_stall_seconds = 5.0
+reconnect_min_seconds = 1.0
+reconnect_max_seconds = 60.0
+outbox_max_rows = 20000

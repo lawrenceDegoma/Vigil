@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import numpy as np
@@ -14,6 +15,7 @@ from vigil_edge.models import (
     SignalType,
     WindowFeatures,
 )
+from vigil_edge.store import ClipRecord
 
 QUIET_WINDOW = WindowFeatures(
     t_start=0.0,
@@ -111,3 +113,23 @@ def textured(h: int = 120, w: int = 160, seed: int = 0) -> np.ndarray:
     img = rng.integers(40, 200, (h // 4, w // 4)).astype(np.uint8)
     out: np.ndarray = cv2.resize(img, (w, h), interpolation=cv2.INTER_CUBIC)
     return out
+
+
+T0 = datetime(2026, 11, 15, 12, 0, tzinfo=UTC)
+
+
+def clip(i: int, **kw: object) -> ClipRecord:
+    base: dict[str, object] = dict(
+        id=f"c{i}",
+        path=f"/x/c{i}.mp4",
+        incident_ids=(f"i{i}",),
+        kind="incident",
+        started_at=T0,
+        ended_at=T0 + timedelta(seconds=90),
+        bytes=1000 * i,
+        sha256="ab",
+        created_at=T0 + timedelta(minutes=i),
+        expires_at=T0 + timedelta(days=30),
+    )
+    base.update(kw)
+    return ClipRecord(**base)  # type: ignore[arg-type]

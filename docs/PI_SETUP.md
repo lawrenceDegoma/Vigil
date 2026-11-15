@@ -1,0 +1,96 @@
+# Raspberry Pi Setup and Benchmark (Phase 2)
+
+Target: **Raspberry Pi 3 Model B+**, **Arducam Camera Module 3 (IMX708)**, Raspberry Pi OS Lite 64-bit (Bookworm), headless over SSH. Nothing below has been run on the real hardware yet. Steps are written from the Raspberry Pi OS / Picamera2 documentation and must be confirmed during bring-up. Record anything that differs in this file.
+
+## 1. Hardware checklist
+- **Power:** use the official 5.1 V / 2.5 A supply. Under-voltage causes throttling and SD-card corruption. `vcgencmd get_throttled` must report `0x0`.
+- **Cooling:** fit a heatsink and a ventilated case. The service runs 24/7, so check the temperature under load (benchmark below).
+- **Camera cable:** the Pi 3 B+ CSI connector is the standard 15-pin, 1 mm pitch type. Confirm that the Arducam module ships with, or is used with, a **15-pin to 15-pin** ribbon; some kits include only the 22-pin cable for Pi 5 or Zero. The blue stiffener faces the Ethernet port on the Pi 3.
+- **Never hot-plug the CSI ribbon.** Power off before connecting or disconnecting the camera, because it can damage the camera or the Pi. Camera-disconnect tests are done by booting *without* the camera, not by unplugging it live.
+- **microSD:** 32 GB, ideally A1/A2 "high endurance". Vigil writes only event clips, a small SQLite database and a bounded journal.
+
+## 2. Flash and first boot
+1. Use **Raspberry Pi Imager** → Raspberry Pi 3 → *Raspberry Pi OS Lite (64-bit)*. In the settings: set a hostname (e.g. `vigil-pi`), create a user, enable SSH **with public-key authentication only**, configure Wi-Fi, and set the timezone.
+2. Boot, then `ssh <user>@vigil-pi.local`, and run:
+   ```bash
+   sudo apt update && sudo apt full-upgrade -y && sudo reboot
+   ```
+3. Check the camera:
+   ```bash
+   rpicam-hello --list-cameras          # expect: imx708 ... 4608x2592
+   rpicam-still -n -o test.jpg          # then on the Mac: scp vigil-pi.local:test.jpg .
+   ```
+   Use `test.jpg` to aim the camera at where your dog usually rests. Prefer a slightly elevated view covering the whole resting area, with few windows, TVs or fans in frame.
+
+## 3. Install Vigil
+```bash
+sudo apt install -y git
+git clone https://github.com/lawrenceDegoma/Vigil.git ~/Vigil
+cd ~/Vigil && sudo deploy/pi/install.sh
+```
+The installer (idempotent; re-run after `git pull` to update):
+- installs `python3-picamera2`, `python3-opencv`, `python3-numpy` and `ffmpeg` from apt;
+- creates the `vigil` system user (groups `video`, `render`), `/var/lib/vigil` for data and `/etc/vigil` for config;
+- creates `/opt/vigil/venv` with `--system-site-packages` and installs Vigil with `--no-deps`, so pip never replaces apt's NumPy or OpenCV, which Picamera2 is built against (ADR-014);
+- installs `/etc/vigil/vigil.toml` and `/etc/vigil/vigil.env` only if they're absent;
+- limits the journal to 200 MB and enables `vigil-edge.service`.
+
+Then edit:
+- `/etc/vigil/vigil.env`: set `VIGIL_DEVICE_ID`.
+- `/etc/vigil/vigil.toml`: set `[subject] name`, and `[camera]` (`hflip`/`vflip` if mounted upside down; `autofocus`). Leave detection thresholds at their defaults until fixed-camera footage has been evaluated.
+
+## 4. Benchmark (the Phase 2 gate)
+Stop the service first: the camera can only be opened by one process.
+
+```bash
+sudo systemctl stop vigil-edge
+cd /var/lib/vigil
+# 1) analysis cost only (synthetic frames at the lores size), all variants
+sudo -u vigil /opt/vigil/venv/bin/vigil bench --seconds 60 --json-out bench-offline.json
+# 2) live camera + hardware encoder + one test clip, 5 minutes
+sudo -u vigil /opt/vigil/venv/bin/vigil bench --camera --seconds 300 --json-out bench-camera.json
+```
+Copy both JSON files back into `docs/benchmarks/` with a dated name and commit them. **Decision criteria:**
+
+| Measure | Target | If missed |
+|---|---|---|
+| Delivered fps (camera bench) | ≥ 14.5 of 15 requested, dropped frames < 1 % | lower `analysis_size`, turn off `motion.flow`, or drop to 10 fps |
+| Analysis ms/frame p95 | < 40 ms (≤ 60 % of the 66 ms frame budget) | try the 240 px / 160 px variants |
+| Process CPU | < 60 % of one core (leaves headroom for the encoder and OS) | same as above |
+| Peak temperature | < 75 °C sustained, `throttled = 0x0` | improve cooling or power |
+| Peak RSS | < 250 MB | investigate |
+| Test clip | plays, includes lead-in, correct framing | check encoder/ffmpeg |
+
+Only consider a Pi 5 or mini PC if the reduced variants still miss these targets. A Pi 5 has **no hardware H.264 encoder**, so it would need a software-encoder clip backend.
+
+## 5. Run the service
+```bash
+sudo systemctl start vigil-edge
+journalctl -u vigil-edge -f                                   # live logs
+/opt/vigil/venv/bin/vigil health --data-dir /var/lib/vigil   # latest heartbeat
+sudo -u vigil /opt/vigil/venv/bin/vigil clips list --data-dir /var/lib/vigil
+sudo -u vigil /opt/vigil/venv/bin/vigil maintenance on --data-dir /var/lib/vigil   # pause alerts/clips
+```
+Behavior:
+- starts on boot, without waiting for the network;
+- restarts on crash (`Restart=always`, no start limit);
+- restarted by the systemd watchdog if the capture loop hangs;
+- retries a missing camera with backoff up to 60 s, reporting `camera.ok=false` in heartbeats meanwhile.
+
+## 6. Soak and fault tests (Phase 2 exit)
+Record results in `docs/benchmarks/`.
+- [ ] **24 h soak:** `vigil health` every few hours. Check fps stays steady, memory doesn't grow, temperature, `throttled`, and that `/var/lib/vigil` grows only with event clips.
+- [ ] **Reboot recovery:** `sudo reboot`, then confirm the service is up and the camera is OK within about 60 s.
+- [ ] **Power loss:** pull the power during operation, then confirm it boots cleanly, the database is intact (`sqlite3 /var/lib/vigil/vigil.db 'pragma integrity_check'`), and clips are indexed.
+- [ ] **No camera at boot:** power off, disconnect the ribbon, boot. Logs should show retries and the heartbeat `camera.ok=false`, with no crash loop. Power off, reconnect, boot.
+- [ ] **Process kill:** `sudo systemctl kill -s KILL vigil-edge`; it should restart within about 5 s.
+- [ ] **Low disk:** set `disk_quota_gb` small, generate clips (e.g. wave at the camera), and confirm the oldest unpreserved clips are deleted and preserved ones kept.
+- [ ] **Maintenance:** `maintenance on` stops incident export and clips; heartbeat shows `maintenance: true`.
+
+## 7. Notes and known constraints
+- **No real-time clock.** The Pi 3 restores the last saved time at boot (fake-hwclock) until NTP syncs. Detection uses monotonic time and is unaffected, but UTC timestamps in clips and events may be off until sync after an offline boot. Phase 3 will flag unsynced clocks (ADR-016).
+- **Security:**
+  - SSH keys only (`PasswordAuthentication no`).
+  - No port forwarding to the Pi; nothing listens on the network.
+  - Consider `ufw default deny incoming` plus `ufw allow from <LAN> to any port 22`.
+- **Footage on the device** lives only in `/var/lib/vigil/clips` (mode 0750, user `vigil`), bounded by retention and quota.

@@ -63,3 +63,20 @@ Rule to implement:
 - Contact must never permanently disable detection, and the rule is a profile setting (it may not suit other subjects).
 
 Complementary feature: **limb or whole-body extent of motion**. Episode paddling involves several limbs and the body; the scratch reflex is typically one hind leg. Measure it with a fixed camera via subject silhouette segmentation; evaluate on the owner's fixed-vantage footage before adoption.
+
+### ADR-014 — Pi dependencies come from apt; Vigil installs with `--no-deps`
+**Status:** accepted (2026-11-15)
+`python3-picamera2` and its compiled helpers are built against Raspberry Pi OS's NumPy. Letting pip install NumPy 2.x or `opencv-python-headless` wheels into the venv can break Picamera2 at import time and pulls about 50 MB of duplicate libraries onto a 1 GB device. On the Pi the venv uses `--system-site-packages`, and Vigil is installed with `pip install --no-deps`, so NumPy, OpenCV and Picamera2 all come from apt. On the Mac, `uv` installs pinned wheels as before. The code must keep working with the older apt versions (NumPy ≥ 1.24, OpenCV ≥ 4.6).
+
+### ADR-015 — Live service semantics
+**Status:** accepted (2026-11-15)
+- **Sessions.** A camera failure ends the *session*: open incidents are closed with `end_reason: stream_end` (exported, so the dashboard never shows a phantom ongoing incident), the clip in progress is saved, and the service reconnects with exponential backoff (1 s up to 60 s). State is never carried across a camera outage.
+- **Recording.** The Pi uses dual streams: `main` 1280x720 goes to the hardware H.264 encoder and `CircularOutput` (`pre_event_seconds` lead-in); `lores` 320x180 YUV420 feeds analysis via its Y plane. Clips stop `post_event_seconds` after the last open incident ends, split at `max_clip_seconds`, and are remuxed to MP4 with `ffmpeg -c copy`. Shadow detections get short clips (pre-event + 30 s) so experimental detectors can be reviewed.
+- **Watchdog.** `Type=notify` with `WatchdogSec=60`. The watchdog is fed only while the capture loop has processed a frame within 15 s, or is deliberately backing off, so a hung libcamera call triggers a restart but a missing camera does not cause a restart loop.
+- **Maintenance.** A flag file `<data_dir>/state/maintenance`, toggled by `vigil maintenance on|off`. Analysis keeps running and logging; nothing is exported or recorded; heartbeats report `maintenance: true`.
+- **Outbox.** Incident events and heartbeats are queued durably in SQLite (idempotent on `event_id`). The sender is Phase 3. The bound drops sent rows, then the oldest unsent heartbeats, and never incident events.
+- **Autofocus.** Defaults to a single autofocus cycle at start. Continuous AF can hunt and appear as scene-wide motion.
+
+### ADR-016 — Wall clock without an RTC
+**Status:** proposed (2026-11-15) — implement in Phase 3
+The Pi 3 has no real-time clock. After a boot without network, UTC can be wrong until NTP syncs. Detection is unaffected (monotonic stream offsets, ADR-008). Phase 3: include a `clock_synced` flag (from `timedatectl show -p NTPSynchronized`) in heartbeats and events, and have the cloud prefer its own receive time when the device clock is unsynced.

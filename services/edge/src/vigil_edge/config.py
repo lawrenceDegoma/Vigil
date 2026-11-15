@@ -190,13 +190,95 @@ class IncidentConfig:
 
 @dataclass(frozen=True)
 class RecordingConfig:
-    """Used from Phase 2 (live circular buffer); defined now so configs are stable."""
+    """Event-only clip recording and retention (DESIGN §5.3)."""
 
+    enabled: bool = True
     pre_event_seconds: float = 30.0
     post_event_seconds: float = 120.0
+    max_clip_seconds: float = 600.0  # longer episodes continue in a new clip
+    record_shadow: bool = True  # short clips for shadow detections (to review them)
     retention_days: int = 30
-    disk_quota_gb: float = 8.0
-    min_free_gb: float = 2.0
+    disk_quota_gb: float = 8.0  # clips beyond this are deleted oldest-unpreserved-first
+    min_free_gb: float = 2.0  # keep at least this much free on the data volume
+    # Software recorder (non-Picamera2 sources): stored width and JPEG quality.
+    software_width: int = 640
+    software_jpeg_quality: int = 80
+
+    def __post_init__(self) -> None:
+        if not (0 <= self.pre_event_seconds <= 120):
+            raise ConfigError("recording.pre_event_seconds must be within [0, 120]")
+        if not (0 <= self.post_event_seconds <= 900):
+            raise ConfigError("recording.post_event_seconds must be within [0, 900]")
+        if not (30 <= self.max_clip_seconds <= 3600):
+            raise ConfigError("recording.max_clip_seconds must be within [30, 3600]")
+        if not (1 <= self.retention_days <= 3650):
+            raise ConfigError("recording.retention_days must be within [1, 3650]")
+        if self.disk_quota_gb <= 0 or self.min_free_gb < 0:
+            raise ConfigError("recording.disk_quota_gb must be > 0 and min_free_gb >= 0")
+        if not (10 <= self.software_jpeg_quality <= 100):
+            raise ConfigError("recording.software_jpeg_quality must be within [10, 100]")
+
+
+Size = tuple[int, int]
+
+
+@dataclass(frozen=True)
+class CameraConfig:
+    """Live camera settings (Phase 2).
+
+    ``picamera2`` records ``main_size`` with the hardware H.264 encoder into a
+    circular buffer while analysis reads the small ``analysis_size`` (lores)
+    stream, so the CPU never touches full-resolution pixels.
+    """
+
+    backend: str = "picamera2"  # picamera2 | opencv (USB webcam / dev)
+    device: int = 0  # opencv device index
+    fps: float = 15.0
+    main_size: Size = (1280, 720)
+    analysis_size: Size = (320, 180)
+    bitrate: int = 2_000_000
+    hflip: bool = False
+    vflip: bool = False
+    # Continuous autofocus can "hunt" and look like scene-wide motion; for a
+    # fixed mount prefer a single focus at startup or a manual lens position.
+    autofocus: str = "once"  # once | continuous | manual
+    lens_position: float = 1.0  # dioptres for manual focus (1.0 ≈ 1 m)
+
+    def __post_init__(self) -> None:
+        if self.backend not in ("picamera2", "opencv"):
+            raise ConfigError("camera.backend must be 'picamera2' or 'opencv'")
+        if self.autofocus not in ("once", "continuous", "manual"):
+            raise ConfigError("camera.autofocus must be once | continuous | manual")
+        if not (1 <= self.fps <= 60):
+            raise ConfigError("camera.fps must be within [1, 60]")
+        for name in ("main_size", "analysis_size"):
+            w, h = getattr(self, name)
+            if w <= 0 or h <= 0 or w % 2 or h % 2:
+                raise ConfigError(f"camera.{name} must be positive even dimensions")
+        if self.analysis_size[0] > self.main_size[0]:
+            raise ConfigError("camera.analysis_size must not be wider than camera.main_size")
+
+
+@dataclass(frozen=True)
+class ServiceConfig:
+    """Long-running edge service settings (Phase 2). Secrets come from env vars."""
+
+    device_id: str = "dev-device"  # overridden by VIGIL_DEVICE_ID
+    data_dir: str = "./data/edge"  # overridden by VIGIL_DATA_DIR
+    heartbeat_seconds: float = 60.0
+    housekeeping_seconds: float = 300.0  # retention + disk checks
+    camera_stall_seconds: float = 5.0  # no frame for this long → camera unhealthy
+    reconnect_min_seconds: float = 1.0
+    reconnect_max_seconds: float = 60.0
+    outbox_max_rows: int = 20000
+
+    def __post_init__(self) -> None:
+        if not self.device_id or len(self.device_id) > 64:
+            raise ConfigError("service.device_id must be 1-64 characters")
+        if self.heartbeat_seconds < 5 or self.housekeeping_seconds < 10:
+            raise ConfigError("service.heartbeat_seconds >= 5 and housekeeping_seconds >= 10")
+        if not (0 < self.reconnect_min_seconds <= self.reconnect_max_seconds):
+            raise ConfigError("service reconnect bounds must satisfy 0 < min <= max")
 
 
 @dataclass(frozen=True)
@@ -209,6 +291,8 @@ class VigilConfig:
     detectors: DetectorsConfig = field(default_factory=DetectorsConfig)
     incident: IncidentConfig = field(default_factory=IncidentConfig)
     recording: RecordingConfig = field(default_factory=RecordingConfig)
+    camera: CameraConfig = field(default_factory=CameraConfig)
+    service: ServiceConfig = field(default_factory=ServiceConfig)
 
     def __post_init__(self) -> None:
         nyquist = self.source.target_fps / 2.0
@@ -225,9 +309,8 @@ class VigilConfig:
     @property
     def rule_version(self) -> str:
         """Rule-set version plus a hash of every detection-relevant setting."""
-        relevant = {
-            k: v for k, v in config_to_dict(self).items() if k not in ("subject", "recording")
-        }
+        ignored = ("subject", "recording", "camera", "service")
+        relevant = {k: v for k, v in config_to_dict(self).items() if k not in ignored}
         digest = hashlib.sha256(json.dumps(relevant, sort_keys=True).encode()).hexdigest()
         return f"{RULES_VERSION}+{digest[:8]}"
 

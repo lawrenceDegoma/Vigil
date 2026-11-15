@@ -14,10 +14,13 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
+import os
+import signal
 import sys
 import tomllib
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -428,6 +431,179 @@ def cmd_config(args: argparse.Namespace) -> int:
     return 0
 
 
+# ----------------------------------------------------------------- service
+
+
+def service_config(args: argparse.Namespace) -> VigilConfig:
+    """Config files (``-c`` or $VIGIL_CONFIG) + --set, then env/flag service overrides."""
+    paths = list(args.config) or (
+        [os.environ["VIGIL_CONFIG"]] if os.environ.get("VIGIL_CONFIG") else []
+    )
+    cfg = build_config(paths, args.set)
+    svc = cfg.service
+    device_id = getattr(args, "device_id", None) or os.environ.get("VIGIL_DEVICE_ID")
+    data_dir = getattr(args, "data_dir", None) or os.environ.get("VIGIL_DATA_DIR")
+    if device_id or data_dir:
+        svc = replace(svc, device_id=device_id or svc.device_id, data_dir=data_dir or svc.data_dir)
+        cfg = replace(cfg, service=svc)
+    return cfg
+
+
+def make_source_factory(
+    spec: str, cfg: VigilConfig, realtime: bool, loop: bool, speed: float
+) -> Any:
+    from vigil_edge.sources.live import LoopingSource, OpenCVCameraSource, PacedSource
+
+    if spec == "camera":
+        if cfg.camera.backend == "picamera2":
+            from vigil_edge.sources.picamera2_source import Picamera2Source
+
+            return lambda: Picamera2Source(
+                cfg.camera, cfg.recording.pre_event_seconds, record=cfg.recording.enabled
+            )
+        return lambda: OpenCVCameraSource(cfg.camera.device, cfg.camera.fps)
+    if spec.startswith("opencv:"):
+        device = int(spec.split(":", 1)[1])
+        return lambda: OpenCVCameraSource(device, cfg.camera.fps)
+    if spec.startswith("synthetic:"):
+        scenario = get_scenario(spec.split(":", 1)[1])
+
+        def base() -> FrameSource:
+            return SyntheticSource(scenario, fps=cfg.source.target_fps)
+    elif spec.startswith("file:"):
+        path = Path(spec.split(":", 1)[1])
+        VideoFileSource(path).close()  # fail fast on a bad path
+
+        def base() -> FrameSource:
+            return VideoFileSource(path, target_fps=cfg.source.target_fps)
+    else:
+        raise CliError(f"unknown source {spec!r} (camera | opencv:N | file:PATH | synthetic:NAME)")
+
+    def factory() -> FrameSource:
+        src: FrameSource = LoopingSource(base) if loop else base()
+        return PacedSource(src, speed=speed) if realtime else src
+
+    return factory
+
+
+def _setup_logging() -> None:
+    level = os.environ.get("VIGIL_LOG_LEVEL", "INFO").upper()
+    logging.basicConfig(
+        level=getattr(logging, level, logging.INFO),
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+    )
+
+
+def cmd_run(args: argparse.Namespace) -> int:
+    from vigil_edge.service import EdgeService
+
+    _setup_logging()
+    cfg = service_config(args)
+    factory = make_source_factory(
+        args.source, cfg, realtime=not args.fast, loop=args.loop, speed=args.speed
+    )
+    service = EdgeService(cfg, factory)
+
+    def stop(signum: int, _frame: object) -> None:
+        logging.getLogger("vigil").info("signal %d: shutting down", signum)
+        service.stop_event.set()
+
+    signal.signal(signal.SIGTERM, stop)
+    signal.signal(signal.SIGINT, stop)
+    service.run()
+    return 0
+
+
+def cmd_bench(args: argparse.Namespace) -> int:
+    from vigil_edge import bench
+
+    _setup_logging()
+    cfg = build_config(args.config, args.set)
+    if args.camera:
+        report = bench.bench_camera(cfg, seconds=args.seconds)
+    else:
+        report = bench.bench_offline(cfg, seconds=args.seconds)
+    text = json.dumps(report, indent=2)
+    if args.json_out:
+        Path(args.json_out).parent.mkdir(parents=True, exist_ok=True)
+        Path(args.json_out).write_text(text + "\n")
+    if report["kind"] == "offline":
+        h = report["host"]
+        print(
+            f"Offline analysis benchmark on {h['model'] or h['cpu'] or h['machine']} "
+            f"({report['input']['analysis_size'][0]}x{report['input']['analysis_size'][1]} "
+            f"@ {report['input']['fps']} fps target)"
+        )
+        print(f"{'variant':<26} {'ms/frame p50':>12} {'p95':>7} {'max fps':>8} {'CPU @target':>11}")
+        for r in report["results"]:
+            ms = r["ms_per_frame"]
+            print(
+                f"{r['variant']:<26} {ms['p50']:>12} {ms['p95']:>7} "
+                f"{r['max_analysis_fps']:>8} {r['cpu_percent_at_target_fps']:>10}%"
+            )
+    else:
+        print(text)
+    return 0
+
+
+def cmd_maintenance(args: argparse.Namespace) -> int:
+    from vigil_edge.service import ServicePaths
+
+    paths = ServicePaths(Path(service_config(args).service.data_dir))
+    flag = paths.maintenance_flag
+    if args.action == "on":
+        flag.parent.mkdir(parents=True, exist_ok=True)
+        flag.write_text(datetime.now(UTC).isoformat())
+    elif args.action == "off":
+        flag.unlink(missing_ok=True)
+    print(f"maintenance {'ON' if flag.exists() else 'off'} ({flag})")
+    return 0
+
+
+def cmd_clips(args: argparse.Namespace) -> int:
+    from vigil_edge.service import ServicePaths
+    from vigil_edge.store import LocalStore
+
+    paths = ServicePaths(Path(service_config(args).service.data_dir))
+    store = LocalStore(paths.db)
+    try:
+        if args.action == "list":
+            clips = store.list_clips()
+            for c in clips:
+                keep = "PRESERVED" if c.preserved else f"expires {c.expires_at:%Y-%m-%d}"
+                print(
+                    f"{c.id}  {c.kind:<8} {c.started_at:%Y-%m-%d %H:%M:%S}Z  "
+                    f"{(c.ended_at - c.started_at).total_seconds():5.0f}s  "
+                    f"{c.bytes / 1e6:6.1f} MB  {keep}"
+                )
+            print(f"{len(clips)} clips, {store.clips_bytes() / 1e9:.2f} GB")
+            return 0
+        if not args.clip_id:
+            raise CliError(f"clips {args.action} needs a clip id")
+        ok = store.set_preserved(args.clip_id, args.action == "preserve", datetime.now(UTC))
+        if not ok:
+            raise CliError(f"no clip {args.clip_id}")
+        print(f"clip {args.clip_id} {args.action}d")
+        return 0
+    finally:
+        store.close()
+
+
+def cmd_health(args: argparse.Namespace) -> int:
+    from vigil_edge.service import ServicePaths
+    from vigil_edge.store import parse_iso
+
+    paths = ServicePaths(Path(service_config(args).service.data_dir))
+    if not paths.heartbeat_file.is_file():
+        print("no heartbeat yet — is `vigil run` running?")
+        return 1
+    hb = json.loads(paths.heartbeat_file.read_text())
+    age = (datetime.now(UTC) - parse_iso(hb["sent_at"])).total_seconds()
+    print(json.dumps(hb, indent=2))
+    print(f"\nlast heartbeat {age:.0f}s ago")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="vigil", description="Vigil edge tools. " + DISCLAIMER)
     parser.add_argument("--version", action="version", version=f"vigil-edge {__version__}")
@@ -480,6 +656,49 @@ def build_parser() -> argparse.ArgumentParser:
     c = sub.add_parser("config", help="print the effective configuration")
     _common_config_args(c)
     c.set_defaults(func=cmd_config)
+
+    def service_args(p: argparse.ArgumentParser) -> None:
+        _common_config_args(p)
+        p.add_argument("--data-dir", help="data directory (default $VIGIL_DATA_DIR or config)")
+
+    r = sub.add_parser("run", help="run the monitoring service (live camera or simulation)")
+    service_args(r)
+    r.add_argument(
+        "--source",
+        default="camera",
+        help="camera | opencv:N | file:PATH | synthetic:NAME (default camera)",
+    )
+    r.add_argument("--device-id", help="device id (default $VIGIL_DEVICE_ID or config)")
+    r.add_argument("--loop", action="store_true", help="replay file/synthetic sources forever")
+    r.add_argument(
+        "--fast",
+        action="store_true",
+        help="file/synthetic: process as fast as possible instead of real time",
+    )
+    r.add_argument("--speed", type=float, default=1.0, help="real-time multiplier for replay")
+    r.set_defaults(func=cmd_run)
+
+    b = sub.add_parser("bench", help="benchmark analysis (offline) or live camera (Pi)")
+    _common_config_args(b)
+    b.add_argument("--camera", action="store_true", help="live Picamera2 benchmark (Pi only)")
+    b.add_argument("--seconds", type=float, default=60.0)
+    b.add_argument("--json-out", help="write the report as JSON")
+    b.set_defaults(func=cmd_bench)
+
+    m = sub.add_parser("maintenance", help="maintenance mode: no alerts or clips")
+    service_args(m)
+    m.add_argument("action", choices=["on", "off", "status"])
+    m.set_defaults(func=cmd_maintenance)
+
+    cl = sub.add_parser("clips", help="list clips; preserve/unpreserve (admin, on device)")
+    service_args(cl)
+    cl.add_argument("action", choices=["list", "preserve", "unpreserve"])
+    cl.add_argument("clip_id", nargs="?")
+    cl.set_defaults(func=cmd_clips)
+
+    h = sub.add_parser("health", help="show the latest local heartbeat")
+    service_args(h)
+    h.set_defaults(func=cmd_health)
     return parser
 
 

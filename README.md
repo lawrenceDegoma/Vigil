@@ -9,7 +9,7 @@
 |---|---|---|
 | 0 | Foundation: layout, contracts, config, interfaces | ✅ done |
 | 1 | Offline detection prototype (Mac) | ✅ done (synthetic-validated only) |
-| 2 | Raspberry Pi camera integration + benchmark | next |
+| 2 | Raspberry Pi camera integration + benchmark | 🚧 software done; hardware benchmark pending |
 | 3 | Supabase backend + SMS notifications | planned |
 | 4 | Web dashboard | planned |
 | 5 | Reliability, security, validation | planned |
@@ -19,7 +19,8 @@
 config/              example configuration (TOML, no secrets)
 docs/                design spec, decision log, detection notes
 packages/contracts/  versioned JSON Schemas for device↔cloud messages
-services/edge/       Python edge service (capture, analysis, incidents)
+services/edge/       Python edge service (capture, analysis, incidents, clips, health)
+deploy/pi/           Raspberry Pi installer, systemd unit, journald limits
 services/backend/    server-side functions (Phase 3)
 supabase/            migrations + RLS policies (Phase 3)
 apps/web/            React dashboard (Phase 4)
@@ -60,10 +61,23 @@ uv run --project services/edge vigil evaluate --synthetic
 
 `summary.json` records the `rule_version` (rule set + hash of every detection setting), the incidents, shadow detections, per-stage timing, and the effective config. Outputs contain numeric features only, except `overlay.mp4`, which is footage and stays local.
 
+## Running the service
+`vigil run` is the long-running monitor: capture → analysis → incidents → event clips (with a pre-event buffer) → durable outbox, plus heartbeats, retention, and maintenance mode. On the Pi it runs under systemd with the camera (see [docs/PI_SETUP.md](docs/PI_SETUP.md)); on the Mac it can be simulated:
+
+```bash
+make simulate                      # looping synthetic day, real time, data in data/edge-sim
+uv run --project services/edge vigil run --source opencv:0 --data-dir data/edge-webcam   # Mac webcam
+uv run --project services/edge vigil health --data-dir data/edge-sim
+uv run --project services/edge vigil clips list --data-dir data/edge-sim
+uv run --project services/edge vigil maintenance on --data-dir data/edge-sim
+make bench                         # analysis benchmark on this machine
+```
+
 See [docs/DETECTION.md](docs/DETECTION.md) for how detection works, current synthetic results, known limitations, and how to analyze and label real recordings.
 
 ## Documentation
 - [docs/DESIGN.md](docs/DESIGN.md): requirements and architecture
 - [docs/DECISIONS.md](docs/DECISIONS.md): architecture decision records
 - [docs/DETECTION.md](docs/DETECTION.md): detection approach, results, limitations
+- [docs/PI_SETUP.md](docs/PI_SETUP.md): Raspberry Pi install, benchmark, soak and fault tests
 - [CLAUDE.md](CLAUDE.md): engineering rules and conventions

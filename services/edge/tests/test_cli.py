@@ -84,3 +84,36 @@ def test_errors_exit_2(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> No
 def test_config_prints_rule_version(capsys: pytest.CaptureFixture[str]) -> None:
     assert main(["config"]) == 0
     assert json.loads(capsys.readouterr().out)["rule_version"].startswith("motion-rules-")
+
+
+def test_run_maintenance_clips_health(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    data = str(tmp_path / "edge")
+    assert main(["maintenance", "status", "--data-dir", data]) == 0
+    assert (
+        main(
+            [
+                "run",
+                "--source",
+                "synthetic:convulsion",
+                "--fast",
+                "--data-dir",
+                data,
+                "--device-id",
+                "cli-test",
+            ]
+        )
+        == 0
+    )
+    capsys.readouterr()
+    assert main(["clips", "list", "--data-dir", data]) == 0
+    out = capsys.readouterr().out
+    assert "1 clips" in out
+    clip_id = out.split()[0]
+    assert main(["clips", "preserve", clip_id, "--data-dir", data]) == 0
+    assert main(["clips", "list", "--data-dir", data]) == 0
+    assert "PRESERVED" in capsys.readouterr().out
+    assert main(["health", "--data-dir", data]) == 0
+    assert '"device_id": "cli-test"' in capsys.readouterr().out
+    assert main(["maintenance", "on", "--data-dir", data]) == 0
+    assert "maintenance ON" in capsys.readouterr().out
+    assert main(["clips", "preserve", "nope", "--data-dir", data]) == 2
