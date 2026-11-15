@@ -119,6 +119,28 @@ Directions this points to, to be evaluated on fixed-camera footage before adopti
 - **Spatial pattern.** The episode involves whole-body motion with paddling limbs. Chewing is concentrated at the head. With a fixed camera, a background model (e.g. MOG2) can segment the resting subject, and "fraction of the subject's silhouette moving" could separate localized from whole-body motion.
 - **Posture.** Side-lying during the episode versus lying on the chest while chewing needs a pose or shape model. Deferred (ADR-006).
 
+### 5.3 First fixed-vantage footage (2026-11-15)
+
+Two owner clips from a propped phone at roughly the intended camera position. The view is a wide living-room shot (4K, apparently the phone's ultra-wide lens), with the subject in the lower-centre resting area, partly at the bottom edge. Both are labeled negative, with behavior annotations, in `data/private/`:
+- **A (52 s):** a person leaves, then the subject rests awake.
+- **B (78 s):** a person kneels and scratches and pets the subject for about 47 s, leaves, the subject lies on its side, and a person walks through.
+
+**Default fixed-camera config:** no convulsion incidents. Petting barely registers: activity 0.0002, flow 0.010 fw/s, 0 % of windows active. There was 1 vomiting shadow false detection, as the person arrived to pet.
+
+**Sensitivity at this scale (scale-transfer experiment, `scripts/experiments/scale_transfer.py`).** The subject is only about 60 px long at 320 px analysis width. The real-episode recording was re-analyzed at a width giving the subject the same pixel length, and its motion converted to deployment-frame units:
+
+| Subject length | Episode activity / flow | Handheld-residue baseline (still subject, moving phone) | Read |
+|---|---|---|---|
+| 60 px (current wide view) | 0.0076 / 0.145 | 0.0021 / 0.105 | **marginal**: activity barely above the ramp floor, and most of the flow could be handheld residue |
+| 90 px | 0.022 / 0.17 | 0.008 / 0.13 | better |
+| 120 px | 0.044 / 0.24 | 0.018 / 0.17 | clear: activity alone saturates intensity |
+
+Conclusion: in the current wide framing, detection of a real episode would be **marginal**. Petting is easily rejected, but partly because *everything* is small. Aim for **≥ 100–120 px of subject length** in the analysis frame (ADR-017).
+
+**With an analysis crop** (`preprocess.crop = [0.2, 0.55, 0.55, 0.45]`, about 1.8× the pixels on the resting area): still no convulsion incidents. Petting reaches window scores of 0.40 at most (threshold 0.5); activity 0.0022 and flow 0.034 are 10–20× below the episode at the equivalent scale, and arm movement often triggers the locomotion suppression. People entering and leaving stay suppressed as locomotion. The **vomiting shadow detector becomes noisy (4 false detections in 2 min)**, mostly slow petting strokes, so it stays in shadow mode.
+
+**Caveats:** two short clips, from one placement and one lighting condition; the transfer experiment is an approximation; no episode has been recorded from the fixed view, and none should be staged. The Pi pilot (shadow-style review of every clip) is what will establish false alerts per day.
+
 **What this does and doesn't show.** The synthetic scenes were designed alongside the rules and some thresholds were calibrated on them (ADR-011), so these numbers are regression baselines, not accuracy estimates. They show that the plumbing works:
 
 - persistence filters short rhythmic behaviors;

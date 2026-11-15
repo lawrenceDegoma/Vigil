@@ -19,6 +19,10 @@ blur_kernel = 5      # odd; 0 disables
 # Normalized polygon limiting analysis to where the subject usually is.
 # Empty = whole frame. Example: roi = [[0.1, 0.3], [0.9, 0.3], [0.9, 1.0], [0.1, 1.0]]
 roi = []
+# Analysis crop [x, y, w, h] (normalized, full frame) applied before resizing: puts more
+# pixels on the resting area. With Picamera2, raise camera.analysis_size (e.g. [640, 360])
+# so the crop has real resolution. Empty = full frame.
+crop = []
 
 [motion]
 diff_threshold = 14  # grey-level change that counts as motion

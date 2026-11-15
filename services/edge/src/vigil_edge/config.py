@@ -56,8 +56,18 @@ class PreprocessConfig:
     blur_kernel: int = 5  # odd Gaussian kernel; 0/1 disables
     # Region of interest polygon in normalized coordinates [[x, y], ...]; empty = full frame.
     roi: tuple[tuple[float, float], ...] = ()
+    # Analysis crop [x, y, w, h] (normalized, full frame) applied *before* resizing, to put
+    # more pixels on the area where the subject rests. Empty = full frame. ROI points stay
+    # in full-frame coordinates.
+    crop: tuple[float, ...] = ()
 
     def __post_init__(self) -> None:
+        if self.crop:
+            if len(self.crop) != 4:
+                raise ConfigError("preprocess.crop must be [x, y, w, h]")
+            x, y, w, h = self.crop
+            if not (0 <= x < 1 and 0 <= y < 1 and 0 < w <= 1 - x + 1e-9 and 0 < h <= 1 - y + 1e-9):
+                raise ConfigError("preprocess.crop must lie within the frame (normalized)")
         if not (64 <= self.width <= 1920):
             raise ConfigError("preprocess.width must be within [64, 1920]")
         if self.blur_kernel > 1 and self.blur_kernel % 2 == 0:

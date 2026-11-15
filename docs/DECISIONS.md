@@ -53,7 +53,7 @@ During Phase 1 the following defaults were set by inspecting feature distributio
 At 15 fps, slow movements (abdominal heaving, slow rolling) move ~1 px between consecutive analysis frames and vanish under the difference threshold. A second difference against the frame `slow_lag_seconds` (0.25 s) earlier costs one extra `absdiff` per frame and makes these movements measurable. It is not camera-compensated, so with `stabilize` it falls back to the consecutive-frame value.
 
 ### ADR-013 — Human contact pauses convulsion evidence (owner domain knowledge)
-**Status:** accepted direction (2026-11-14); implementation pending a person/hand detector benchmarked on the Pi
+**Status:** accepted direction (2026-11-14); implementation pending a person/hand detector benchmarked on the Pi. **Priority lowered 2026-11-15:** from the fixed vantage, 47 s of petting never came close to a convulsion alert (DETECTION §5.3). It does still fool the experimental vomiting detector. Revisit if the pilot shows contact-driven false alerts.
 Owner input: during an episode the family steps back to give the dog space, so **a person touching the subject is evidence against a convulsion**. The main look-alike, a **scratch-reflex leg kick**, happens *while being scratched*, side-lying or belly-up. Petting, belly rubs and chewing while being petted also score like the episode per window (DETECTION §5.2).
 
 Rule to implement:
@@ -80,3 +80,12 @@ Complementary feature: **limb or whole-body extent of motion**. Episode paddling
 ### ADR-016 — Wall clock without an RTC
 **Status:** proposed (2026-11-15) — implement in Phase 3
 The Pi 3 has no real-time clock. After a boot without network, UTC can be wrong until NTP syncs. Detection is unaffected (monotonic stream offsets, ADR-008). Phase 3: include a `clock_synced` flag (from `timedatectl show -p NTPSynchronized`) in heartbeats and events, and have the cloud prefer its own receive time when the device clock is unsynced.
+
+
+### ADR-017 — Pixels on the subject: framing target and analysis crop
+**Status:** accepted (2026-11-15)
+The scale-transfer experiment (DETECTION §5.3) shows real episode motion becomes marginal when the subject is about 60 px long in the analysis frame, and clear at about 120 px. Target **≥ 100–120 px of subject length** at the analysis width. Means, in order of preference:
+1. **Framing:** mount the camera so the usual resting areas fill the lower-middle of the frame, not the edge. Prefer the standard Camera Module 3 (about 66° horizontal field of view) over the wide variant unless coverage requires it.
+2. **Analysis crop** `preprocess.crop` (new): crops the resting area *before* downscaling, so analysis cost is unchanged. On the Pi, raise `camera.analysis_size` (e.g. 640x360, scaled by the ISP at no CPU cost) so the crop has real resolution. Clips still record the full view.
+3. A larger `preprocess.width`, only if the Pi benchmark shows headroom.
+ROI polygons remain in full-frame coordinates.

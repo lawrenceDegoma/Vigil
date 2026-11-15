@@ -22,6 +22,15 @@ Target: **Raspberry Pi 3 Model B+**, **Arducam Camera Module 3 (IMX708)**, Raspb
    ```
    Use `test.jpg` to aim the camera at where your dog usually rests. Prefer a slightly elevated view covering the whole resting area, with few windows, TVs or fans in frame.
 
+   **Framing target (ADR-017):** the dog should be at least about **100–120 px long** in the analysis frame (320 px wide by default), roughly a third of the frame width. Keep his usual spots in the lower-middle, not at the bottom edge. If the room is wide, set an analysis crop around the resting area and raise the lores resolution so the crop has real pixels:
+   ```toml
+   [camera]
+   analysis_size = [640, 360]
+   [preprocess]
+   crop = [0.2, 0.55, 0.55, 0.45]   # x, y, w, h of the resting area (normalized)
+   ```
+   Check which Camera Module 3 variant you have (standard about 66° or wide about 102° horizontal field of view). The standard one makes the dog roughly twice as large from the same spot as a phone's ultra-wide lens.
+
 ## 3. Install Vigil
 ```bash
 sudo apt install -y git

@@ -37,3 +37,27 @@ def test_accepts_greyscale_input() -> None:
 def test_invalid_size() -> None:
     with pytest.raises(ValueError):
         Preprocessor(PreprocessConfig(), (0, 10))
+
+
+def test_crop_gives_more_pixels_to_region() -> None:
+    cfg = PreprocessConfig(width=320, blur_kernel=0, crop=(0.25, 0.5, 0.5, 0.5))
+    p = Preprocessor(cfg, (1280, 720))
+    assert p.size == (320, 180)  # 640x360 crop scaled to 320
+    img = np.zeros((720, 1280, 3), np.uint8)
+    img[360:, 320:960] = 200  # exactly the crop area
+    assert (p(img) == 200).all()
+
+
+def test_roi_is_full_frame_coordinates_with_crop() -> None:
+    roi = ((0.5, 0.5), (1.0, 0.5), (1.0, 1.0), (0.5, 1.0))  # bottom-right quarter
+    p = Preprocessor(PreprocessConfig(width=200, roi=roi, crop=(0.0, 0.5, 1.0, 0.5)), (400, 200))
+    assert p.size == (200, 50)
+    assert p.roi_mask[25, 20] == 0  # left half of the crop
+    assert p.roi_mask[25, 180] == 255
+
+
+def test_invalid_crop_rejected() -> None:
+    from vigil_edge.config import ConfigError
+
+    with pytest.raises(ConfigError):
+        PreprocessConfig(crop=(0.5, 0.5, 0.8, 0.2))
