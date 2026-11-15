@@ -15,7 +15,7 @@ Build a privacy-first, continuously operating home camera system that flags **po
 - Reported seizures involve full-body shaking, typically about 60–90 seconds.
 - Vomiting has sometimes preceded seizures, with variable delay; this is **not** a reliable predictor.
 - One handheld seizure recording exists for exploratory analysis; it is not sufficient to train or validate a classifier.
-- Available hardware: Raspberry Pi 3 Model B+, Arducam Camera Module 3 (IMX708), microSD; Ring camera retained for its existing app, not assumed to provide a local video stream.
+- Available hardware: Raspberry Pi 3 Model B+, Arducam Camera Module 3 (IMX708, 12 MP, autofocus, field of view 75°D × 66°H × 41°V), microSD; Ring camera retained for its existing app, not assumed to provide a local video stream.
 - Target additional spend: approximately $50–$100, subject to benchmarking.
 
 ### 1.1 Generalization beyond the first deployment

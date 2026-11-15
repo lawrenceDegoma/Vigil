@@ -139,6 +139,8 @@ Conclusion: in the current wide framing, detection of a real episode would be **
 
 **With an analysis crop** (`preprocess.crop = [0.2, 0.55, 0.55, 0.45]`, about 1.8× the pixels on the resting area): still no convulsion incidents. Petting reaches window scores of 0.40 at most (threshold 0.5); activity 0.0022 and flow 0.034 are 10–20× below the episode at the equivalent scale, and arm movement often triggers the locomotion suppression. People entering and leaving stay suppressed as locomotion. The **vomiting shadow detector becomes noisy (4 false detections in 2 min)**, mostly slow petting strokes, so it stays in shadow mode.
 
+**Projection to the actual camera:** the owner's Arducam IMX708 (66° horizontal × 41° vertical) sees about the central half (linearly) of this phone view, so from the same spot the subject would be about 110–120 px long without any crop. The cropped run above approximates that view, which is the encouraging case, *if* the camera is aimed down at the resting area (PI_SETUP §2).
+
 **Caveats:** two short clips, from one placement and one lighting condition; the transfer experiment is an approximation; no episode has been recorded from the fixed view, and none should be staged. The Pi pilot (shadow-style review of every clip) is what will establish false alerts per day.
 
 **What this does and doesn't show.** The synthetic scenes were designed alongside the rules and some thresholds were calibrated on them (ADR-011), so these numbers are regression baselines, not accuracy estimates. They show that the plumbing works:

@@ -29,7 +29,9 @@ Target: **Raspberry Pi 3 Model B+**, **Arducam Camera Module 3 (IMX708)**, Raspb
    [preprocess]
    crop = [0.2, 0.55, 0.55, 0.45]   # x, y, w, h of the resting area (normalized)
    ```
-   Check which Camera Module 3 variant you have (standard about 66° or wide about 102° horizontal field of view). The standard one makes the dog roughly twice as large from the same spot as a phone's ultra-wide lens.
+   **Owner's camera:** Arducam IMX708, field of view 75° diagonal × 66° horizontal × 41° vertical (standard lens). Compared with the iPhone 0.5× footage used in DETECTION §5.3 (about 102–108° horizontal), it sees about **half the width and half the height** of the phone view from the same spot. The dog therefore appears about **2× larger** (about 110–120 px instead of about 60 px), meeting the target without a crop. **Aim it at the resting area:** in the phone footage the dog lay at the bottom edge, which is outside the Arducam's view unless the camera is tilted down about 25–30° relative to the phone, or mounted lower or closer.
+
+   **Measure it:** take a still (`rpicam-still -n -o frame.jpg`, 4608 px wide) with the dog in a usual spot, measure his body length in pixels, and multiply by 320/4608 (or by `preprocess.width` / crop width in pixels if cropping). Every usual spot should give **≥ 100 px**. If not, move or tilt the camera first, then consider `preprocess.crop`. Picamera2 uses a full-field-of-view binned sensor mode for 1280x720 video; check `rpicam-hello --list-cameras` and the Vigil startup log if framing looks cropped.
 
 ## 3. Install Vigil
 ```bash

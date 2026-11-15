@@ -85,7 +85,7 @@ The Pi 3 has no real-time clock. After a boot without network, UTC can be wrong 
 ### ADR-017 — Pixels on the subject: framing target and analysis crop
 **Status:** accepted (2026-11-15)
 The scale-transfer experiment (DETECTION §5.3) shows real episode motion becomes marginal when the subject is about 60 px long in the analysis frame, and clear at about 120 px. Target **≥ 100–120 px of subject length** at the analysis width. Means, in order of preference:
-1. **Framing:** mount the camera so the usual resting areas fill the lower-middle of the frame, not the edge. Prefer the standard Camera Module 3 (about 66° horizontal field of view) over the wide variant unless coverage requires it.
+1. **Framing:** mount the camera so the usual resting areas fill the lower-middle of the frame, not the edge. Prefer the standard Camera Module 3 (about 66° horizontal field of view) over the wide variant unless coverage requires it. *Owner's camera (2026-11-15): Arducam IMX708, 75°D × 66°H × 41°V. That is about 0.5× the phone ultra-wide's linear field, so the subject appears about 2× larger (about 110–120 px) from the same position. Expected to meet the target without a crop, provided the camera is aimed down at the resting area. Verify with the PI_SETUP §2 measurement.*
 2. **Analysis crop** `preprocess.crop` (new): crops the resting area *before* downscaling, so analysis cost is unchanged. On the Pi, raise `camera.analysis_size` (e.g. 640x360, scaled by the ISP at no CPU cost) so the crop has real resolution. Clips still record the full view.
 3. A larger `preprocess.width`, only if the Pi benchmark shows headroom.
 ROI polygons remain in full-frame coordinates.
