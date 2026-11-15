@@ -114,7 +114,8 @@ All used `config/handheld.toml`. **No incidents or shadow detections.** That res
 **Finding:** per-window motion features do **not** separate these behaviors from the real episode. **Duration is the only thing that does**, so chewing or vigorous petting lasting over about 10 s would very likely produce a false urgent alert with the current rules. Restricting the rhythm band to 2–6 Hz (the episode is 97 % ≥ 2 Hz; chewing peaks around 1.2 Hz) barely helps: chewing is still 91 % active, because intensity and persistence carry the score. The synthetic regression set is unchanged either way. **Defaults were not changed.** One positive and three short negatives can't justify tuning, and all four are handheld close-ups unlike the deployment view.
 
 Directions this points to, to be evaluated on fixed-camera footage before adoption:
-- **Human interaction context.** A person's hand is in frame in all three negatives. Detecting a person touching or next to the subject could suppress or downgrade an alert, since someone is already present. This needs a person or hand detector whose Pi 3 cost is unmeasured (Phase 2 benchmark), and it is a product decision: a seizure *while* someone is present still matters to other family members.
+- **Human contact context: accepted direction (ADR-013).** The owner confirmed that family steps back during an episode, and that the scratch-reflex leg kick (the closest look-alike) happens while he is being scratched. Contact windows will pause convulsion evidence. This needs a person or hand detector whose Pi 3 cost is unmeasured (Phase 2 benchmark).
+- **Limb and whole-body extent.** Episode paddling involves multiple limbs; the scratch reflex is typically one hind leg.
 - **Spatial pattern.** The episode involves whole-body motion with paddling limbs. Chewing is concentrated at the head. With a fixed camera, a background model (e.g. MOG2) can segment the resting subject, and "fraction of the subject's silhouette moving" could separate localized from whole-body motion.
 - **Posture.** Side-lying during the episode versus lying on the chest while chewing needs a pose or shape model. Deferred (ADR-006).
 
@@ -144,6 +145,22 @@ Real footage will be harder.
 10. Scores are **uncalibrated**. `confidence` in contracts is the peak score, not a probability.
 
 ## 7. Analyzing real footage (e.g. the recorded seizure)
+
+**Recording ordinary-behavior footage for evaluation.** Prop the phone where the Pi camera will go (same height, angle and room; landscape; not handheld). Record clips of at least 1–2 minutes so the 10 s persistence rule is actually tested. Priority behaviors:
+- scratch-reflex leg kicks while being scratched, side-lying *and* belly-up;
+- belly rubs and petting;
+- chewing a bone or toy;
+- self-scratching and grooming;
+- rolling;
+- sleeping, including twitching in sleep;
+- people walking through;
+- lights switching.
+
+Include the moment a person steps away. Label each clip with an empty `events` list, and optionally add behavior annotations, which the evaluator ignores but which support per-behavior analysis:
+```json
+{"events": [], "annotations": [{"behavior": "scratch_reflex", "start": 12.0, "end": 40.0, "human_contact": true}]}
+```
+
 
 Footage stays on the Mac. Put it under `data/`, which is gitignored, and never commit or upload it.
 

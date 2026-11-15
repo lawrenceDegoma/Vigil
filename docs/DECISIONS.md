@@ -51,3 +51,15 @@ During Phase 1 the following defaults were set by inspecting feature distributio
 ### ADR-012 — Lagged ("slow") motion channel
 **Status:** accepted (2026-11-14)
 At 15 fps, slow movements (abdominal heaving, slow rolling) move ~1 px between consecutive analysis frames and vanish under the difference threshold. A second difference against the frame `slow_lag_seconds` (0.25 s) earlier costs one extra `absdiff` per frame and makes these movements measurable. It is not camera-compensated, so with `stabilize` it falls back to the consecutive-frame value.
+
+### ADR-013 — Human contact pauses convulsion evidence (owner domain knowledge)
+**Status:** accepted direction (2026-11-14); implementation pending a person/hand detector benchmarked on the Pi
+Owner input: during an episode the family steps back to give the dog space, so **a person touching the subject is evidence against a convulsion**. The main look-alike, a **scratch-reflex leg kick**, happens *while being scratched*, side-lying or belly-up. Petting, belly rubs and chewing while being petted also score like the episode per window (DETECTION §5.2).
+
+Rule to implement:
+- Windows where a person is in contact with, or immediately beside, the subject do **not** count toward a convulsion candidate. They pause it rather than reset it.
+- Once contact ends, suspicious motion must persist the normal `onset_seconds` before an incident opens. A real episode (typically 60–90 s) therefore still alerts shortly after people step back.
+- If a person is present but *not* touching the subject (standing back), evidence counts normally.
+- Contact must never permanently disable detection, and the rule is a profile setting (it may not suit other subjects).
+
+Complementary feature: **limb or whole-body extent of motion**. Episode paddling involves several limbs and the body; the scratch reflex is typically one hind leg. Measure it with a fixed camera via subject silhouette segmentation; evaluate on the owner's fixed-vantage footage before adoption.
