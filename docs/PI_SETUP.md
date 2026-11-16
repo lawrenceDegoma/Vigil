@@ -55,13 +55,17 @@ Stop the service first: the camera can only be opened by one process.
 
 ```bash
 sudo systemctl stop vigil-edge
+sudo -u vigil -s            # shell as the vigil user; /var/lib/vigil is private to it (0750)
 cd /var/lib/vigil
 # 1) analysis cost only (synthetic frames at the lores size), all variants
-sudo -u vigil /opt/vigil/venv/bin/vigil bench --seconds 60 --json-out bench-offline.json
-# 2) live camera + hardware encoder + one test clip, 5 minutes
-sudo -u vigil /opt/vigil/venv/bin/vigil bench --camera --seconds 300 --json-out bench-camera.json
+/opt/vigil/venv/bin/vigil bench -c /etc/vigil/vigil.toml --seconds 60 --json-out bench-offline.json
+# 2) live camera + hardware encoder + one test clip (data/bench/), 5 minutes
+/opt/vigil/venv/bin/vigil bench -c /etc/vigil/vigil.toml --camera --seconds 300 --json-out bench-camera.json
+exit
+# copy results somewhere your user can read, then scp them to the Mac
+sudo cp -r /var/lib/vigil/bench-*.json /var/lib/vigil/data/bench ~/ && sudo chown -R "$USER": ~/bench*
 ```
-Copy both JSON files back into `docs/benchmarks/` with a dated name and commit them. **Decision criteria:**
+On the Mac: `scp -r vigil-pi:'bench*' docs/benchmarks/`. Rename the JSON files with a date, commit them (not the test clip), and watch the clip. **Decision criteria:**
 
 | Measure | Target | If missed |
 |---|---|---|
