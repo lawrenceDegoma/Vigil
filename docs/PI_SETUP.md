@@ -47,7 +47,7 @@ The installer (idempotent; re-run after `git pull` to update):
 - limits the journal to 200 MB and enables `vigil-edge.service`.
 
 Then edit:
-- `/etc/vigil/vigil.env`: set `VIGIL_DEVICE_ID`.
+- `/etc/vigil/vigil.env`: `VIGIL_DEVICE_ID` defaults to `pi-livingroom`. Keep it, or rename it (1–64 characters, unique per device). It's a label, not a secret.
 - `/etc/vigil/vigil.toml`: set `[subject] name`, and `[camera]` (`hflip`/`vflip` if mounted upside down; `autofocus`). Leave detection thresholds at their defaults until fixed-camera footage has been evaluated.
 
 ## 4. Benchmark (the Phase 2 gate)
