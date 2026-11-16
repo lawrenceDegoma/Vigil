@@ -63,7 +63,8 @@ cd /var/lib/vigil
 /opt/vigil/venv/bin/vigil bench -c /etc/vigil/vigil.toml --camera --seconds 300 --json-out bench-camera.json
 exit
 # copy results somewhere your user can read, then scp them to the Mac
-sudo cp -r /var/lib/vigil/bench-*.json /var/lib/vigil/data/bench ~/ && sudo chown -R "$USER": ~/bench*
+# (the glob must be expanded by root: your user can't list /var/lib/vigil)
+sudo sh -c "cp -r /var/lib/vigil/bench-*.json /var/lib/vigil/data/bench $HOME/" && sudo chown -R "$USER": ~/bench*
 ```
 On the Mac: `scp -r vigil-pi:'bench*' docs/benchmarks/`. Rename the JSON files with a date, commit them (not the test clip), and watch the clip. **Decision criteria:**
 
