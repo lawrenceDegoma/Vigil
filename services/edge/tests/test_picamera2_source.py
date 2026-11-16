@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import shutil
+import subprocess
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, ClassVar
@@ -174,3 +176,42 @@ def test_circular_backend_writes_clip(tmp_path: Path) -> None:
     assert path.read_bytes().startswith(b"\x00\x00\x00\x01")
     assert out.events == ["start", "stop"]
     assert be.stop_clip() is None
+
+
+def _ffmpeg_with_x264() -> bool:
+    if shutil.which("ffmpeg") is None or shutil.which("ffprobe") is None:
+        return False
+    enc = subprocess.run(["ffmpeg", "-hide_banner", "-encoders"], capture_output=True, text=True)
+    return " libx264 " in enc.stdout
+
+
+@pytest.mark.skipif(not _ffmpeg_with_x264(), reason="needs ffmpeg/ffprobe with libx264")
+def test_remux_uses_configured_fps_not_stream_timing(tmp_path: Path) -> None:
+    # 30 frames at 15 fps whose VUI timing claims double the rate, like the Pi
+    # encoder's output. The clip must last ~2 s, not ~1 s.
+    raw = tmp_path / "src.h264"
+    subprocess.run(
+        ["ffmpeg", "-loglevel", "error", "-y", "-f", "lavfi", "-i", "testsrc=size=64x64:rate=15",
+         "-frames:v", "30", "-c:v", "libx264", "-bsf:v", "h264_metadata=tick_rate=60",
+         "-f", "h264", str(raw)],
+        check=True,
+    )  # fmt: skip
+
+    class CopyOutput(FakeOutput):
+        def start(self) -> None:
+            assert self.fileoutput
+            shutil.copyfile(raw, self.fileoutput)
+
+    be = Picamera2CircularBackend(CopyOutput(450), fps=15, remux=True)
+    be.start_clip(tmp_path / "clip.mp4", from_ts=0)
+    path = be.stop_clip()
+    assert path == tmp_path / "clip.mp4"
+    assert not (tmp_path / "clip.h264").exists()
+    duration = float(
+        subprocess.run(
+            ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0",
+             str(path)],
+            capture_output=True, text=True, check=True,
+        ).stdout
+    )  # fmt: skip
+    assert 1.8 <= duration <= 2.1

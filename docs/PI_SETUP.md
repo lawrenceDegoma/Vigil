@@ -1,6 +1,6 @@
 # Raspberry Pi Setup and Benchmark (Phase 2)
 
-Target: **Raspberry Pi 3 Model B+**, **Arducam Camera Module 3 (IMX708)**, Raspberry Pi OS Lite 64-bit (Bookworm), headless over SSH. Nothing below has been run on the real hardware yet. Steps are written from the Raspberry Pi OS / Picamera2 documentation and must be confirmed during bring-up. Record anything that differs in this file.
+Target: **Raspberry Pi 3 Model B+**, **Arducam Camera Module 3 (IMX708)**, Raspberry Pi OS 64-bit (Bookworm or Trixie), headless over SSH. **First bring-up: 2026-11-16** on the owner's Pi 3 B+, running Pi OS on Debian 13 "Trixie" (Python 3.13.5, OpenCV 4.10), booted to the console. Sections 1–4 have now been run on that Pi; sections 5–6 have not. Record anything that differs in this file.
 
 ## 1. Hardware checklist
 - **Power:** use the official 5.1 V / 2.5 A supply. Under-voltage causes throttling and SD-card corruption. `vcgencmd get_throttled` must report `0x0`.
@@ -10,11 +10,12 @@ Target: **Raspberry Pi 3 Model B+**, **Arducam Camera Module 3 (IMX708)**, Raspb
 - **microSD:** 32 GB, ideally A1/A2 "high endurance". Vigil writes only event clips, a small SQLite database and a bounded journal.
 
 ## 2. Flash and first boot
-1. Use **Raspberry Pi Imager** → Raspberry Pi 3 → *Raspberry Pi OS Lite (64-bit)*. In the settings: set a hostname (e.g. `vigil-pi`), create a user, enable SSH **with public-key authentication only**, configure Wi-Fi, and set the timezone.
+1. Use **Raspberry Pi Imager** → Raspberry Pi 3 → *Raspberry Pi OS Lite (64-bit)*. If you install the desktop image instead, boot it to the console with `sudo systemctl set-default multi-user.target`, because the desktop is sluggish on a Pi 3 and takes CPU and RAM from Vigil. In the settings: set a hostname (e.g. `vigil-pi`), create a user, enable SSH **with public-key authentication only**, configure Wi-Fi, and set the timezone.
 2. Boot, then `ssh <user>@vigil-pi.local`, and run:
    ```bash
-   sudo apt update && sudo apt full-upgrade -y && sudo reboot
+   sudo apt update && sudo apt full-upgrade -y && sudo poweroff
    ```
+   Connect the camera while it's off: wait for the green LED to stop, unplug the power, attach the ribbon, then boot.
 3. Check the camera:
    ```bash
    rpicam-hello --list-cameras          # expect: imx708 ... 4608x2592

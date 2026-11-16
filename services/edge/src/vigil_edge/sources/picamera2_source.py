@@ -82,13 +82,16 @@ class Picamera2CircularBackend:
         if not self._remux:
             return h264
         mp4 = h264.with_suffix(".mp4")
+        # Input `-r` forces constant-rate timestamps. `-framerate` is overridden by the
+        # stream's VUI timing, which the Pi encoder writes as 2x the frame rate: the
+        # first Pi benchmark clip (2026-11-16) played at double speed because of it.
         result = subprocess.run(
             [
                 "ffmpeg",
                 "-loglevel",
                 "error",
                 "-y",
-                "-framerate",
+                "-r",
                 f"{self._fps:g}",
                 "-i",
                 str(h264),

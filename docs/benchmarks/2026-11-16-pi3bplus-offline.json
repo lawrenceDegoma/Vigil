@@ -1,0 +1,128 @@
+{
+  "kind": "offline",
+  "measured_at": "2026-11-16T22:09:47+00:00",
+  "vigil_edge_version": "0.1.0",
+  "host": {
+    "cpu": "Raspberry Pi 3 Model B Plus Rev 1.3",
+    "machine": "aarch64",
+    "system": "Linux",
+    "release": "6.18.60+rpt-rpi-v8",
+    "python": "3.13.5",
+    "processor": null,
+    "model": "Raspberry Pi 3 Model B Plus Rev 1.3",
+    "opencv": "4.10.0",
+    "cv_threads": 4
+  },
+  "input": {
+    "frames": 900,
+    "analysis_size": [
+      320,
+      180
+    ],
+    "fps": 15.0,
+    "note": "synthetic greyscale frames, pre-rendered; decode/render excluded"
+  },
+  "peak_rss_mb": 230.1,
+  "results": [
+    {
+      "variant": "default (320px, flow on)",
+      "frames": 900,
+      "ms_per_frame": {
+        "mean": 21.573,
+        "p50": 11.64,
+        "p95": 35.203,
+        "max": 142.281
+      },
+      "stage_ms_per_frame": {
+        "preprocess": 0.415,
+        "motion": 20.043,
+        "window": 1.022,
+        "detect": 0.024,
+        "incident": 0.004
+      },
+      "max_analysis_fps": 46.3,
+      "cpu_percent_at_target_fps": 32.4,
+      "process_cpu_percent_during_run": 169.5
+    },
+    {
+      "variant": "320px, flow off",
+      "frames": 900,
+      "ms_per_frame": {
+        "mean": 13.392,
+        "p50": 11.633,
+        "p95": 19.445,
+        "max": 25.104
+      },
+      "stage_ms_per_frame": {
+        "preprocess": 0.372,
+        "motion": 12.119,
+        "window": 0.806,
+        "detect": 0.025,
+        "incident": 0.004
+      },
+      "max_analysis_fps": 74.6,
+      "cpu_percent_at_target_fps": 20.1,
+      "process_cpu_percent_during_run": 207.2
+    },
+    {
+      "variant": "240px, flow on",
+      "frames": 900,
+      "ms_per_frame": {
+        "mean": 18.423,
+        "p50": 13.608,
+        "p95": 29.436,
+        "max": 40.487
+      },
+      "stage_ms_per_frame": {
+        "preprocess": 2.962,
+        "motion": 14.437,
+        "window": 0.928,
+        "detect": 0.024,
+        "incident": 0.004
+      },
+      "max_analysis_fps": 54.3,
+      "cpu_percent_at_target_fps": 27.6,
+      "process_cpu_percent_during_run": 177.0
+    },
+    {
+      "variant": "160px, flow on",
+      "frames": 900,
+      "ms_per_frame": {
+        "mean": 8.805,
+        "p50": 6.254,
+        "p95": 16.947,
+        "max": 23.613
+      },
+      "stage_ms_per_frame": {
+        "preprocess": 0.397,
+        "motion": 7.317,
+        "window": 0.992,
+        "detect": 0.025,
+        "incident": 0.005
+      },
+      "max_analysis_fps": 113.5,
+      "cpu_percent_at_target_fps": 13.2,
+      "process_cpu_percent_during_run": 227.0
+    },
+    {
+      "variant": "160px, flow off",
+      "frames": 900,
+      "ms_per_frame": {
+        "mean": 10.978,
+        "p50": 9.857,
+        "p95": 18.681,
+        "max": 23.321
+      },
+      "stage_ms_per_frame": {
+        "preprocess": 0.367,
+        "motion": 9.613,
+        "window": 0.898,
+        "detect": 0.026,
+        "incident": 0.005
+      },
+      "max_analysis_fps": 91.0,
+      "cpu_percent_at_target_fps": 16.5,
+      "process_cpu_percent_during_run": 232.1
+    }
+  ]
+}
