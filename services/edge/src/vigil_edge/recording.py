@@ -12,15 +12,23 @@ The **ClipManager** owns policy: which state-machine outputs start a clip,
 when it stops (``post_event_seconds`` after the last incident ends), splitting
 very long episodes, integrity hashing, and indexing in the local store.
 Normal operation never writes continuous footage; only event clips persist.
+
+Threading: the capture loop only *starts* and *stops* clips. The slow part of
+finalizing (backend post-processing such as an ffmpeg remux, SHA-256, store
+insert) runs on one background worker, in order. Doing it inline stalled
+analysis for 1.5-2.5 s per clip on the Pi 3 (benchmark 2026-11-16), which
+during a long episode would recur at every clip split.
 """
 
 from __future__ import annotations
 
 import hashlib
 import logging
+import threading
 import uuid
 from collections import deque
 from collections.abc import Callable
+from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -47,9 +55,16 @@ class ClipBackend(Protocol):
         """Begin writing to ``path``, including buffered video from ``from_ts`` on."""
 
     def stop_clip(self) -> Path | None:
-        """Finish the current clip; return the final file path (or None on failure)."""
+        """Stop writing (fast; capture thread). Returns the raw file, or None if idle."""
 
-    def close(self) -> None: ...
+    def finish(self, raw: Path) -> Path | None:
+        """Post-process a stopped clip (may be slow; runs on a worker thread).
+
+        Must not touch live capture state. Returns the final file, or None on failure.
+        """
+
+    def close(self) -> None:
+        """Stop and finish any clip in progress (synchronously)."""
 
 
 class SoftwareRingBackend:
@@ -116,6 +131,9 @@ class SoftwareRingBackend:
         path, self._writer, self._path = self._path, None, None
         return path
 
+    def finish(self, raw: Path) -> Path | None:
+        return raw if raw.is_file() else None
+
     def close(self) -> None:
         self.stop_clip()
         self._ring.clear()
@@ -150,6 +168,7 @@ class ClipManager:
         stream_started_at: datetime,
         now_utc: Callable[[], datetime],
         id_factory: Callable[[], str] = lambda: str(uuid.uuid4()),
+        background: bool = True,
     ) -> None:
         self.backend = backend
         self.store = store
@@ -160,6 +179,13 @@ class ClipManager:
         self._new_id = id_factory
         self.active: _ActiveClip | None = None
         self.finalized: list[ClipRecord] = []
+        self._lock = threading.Lock()
+        self._pool = (
+            ThreadPoolExecutor(max_workers=1, thread_name_prefix="clip-finalize")
+            if background
+            else None
+        )
+        self._pending: list[Future[None]] = []
 
     # -------------------------------------------------------------- policy
 
@@ -203,8 +229,28 @@ class ClipManager:
                 nxt.open_incidents = set(carry)
 
     def close(self, t: float) -> None:
+        """Finalize any open clip and wait for all pending finalization."""
         if self.active is not None:
             self._finalize(t)
+        self.drain()
+        if self._pool is not None:
+            self._pool.shutdown(wait=True)
+            self._pool = None
+
+    def drain(self) -> None:
+        """Block until every stopped clip has been finished and indexed."""
+        while True:
+            with self._lock:
+                pending, self._pending = self._pending, []
+            if not pending:
+                return
+            for fut in pending:
+                fut.result()
+
+    @property
+    def pending_finalizations(self) -> int:
+        with self._lock:
+            return sum(not f.done() for f in self._pending)
 
     # ----------------------------------------------------------- mechanics
 
@@ -223,23 +269,39 @@ class ClipManager:
         clip = self.active
         assert clip is not None
         self.active = None
-        path = self.backend.stop_clip()
-        if path is None or not path.is_file():
+        raw = self.backend.stop_clip()  # fast: the encoder/writer stops on this thread
+        if raw is None:
             log.error("clip %s produced no file", clip.id)
             return
-        created = self._now()
-        record = ClipRecord(
-            id=clip.id,
-            path=str(path),
-            incident_ids=tuple(clip.incident_ids),
-            kind=clip.kind,
-            started_at=self.stream_started_at + timedelta(seconds=clip.start_ts),
-            ended_at=self.stream_started_at + timedelta(seconds=t),
-            bytes=path.stat().st_size,
-            sha256=sha256_file(path),
-            created_at=created,
-            expires_at=created + timedelta(days=self.cfg.retention_days),
-        )
-        self.store.add_clip(record)
-        self.finalized.append(record)
-        log.info("clip %s saved: %s (%d bytes)", clip.id, path.name, record.bytes)
+        if self._pool is None:
+            self._index(clip, raw, t)
+            return
+        fut = self._pool.submit(self._index, clip, raw, t)
+        with self._lock:
+            self._pending = [f for f in self._pending if not f.done()] + [fut]
+
+    def _index(self, clip: _ActiveClip, raw: Path, t: float) -> None:
+        try:
+            path = self.backend.finish(raw)
+            if path is None or not path.is_file():
+                log.error("clip %s produced no file", clip.id)
+                return
+            created = self._now()
+            record = ClipRecord(
+                id=clip.id,
+                path=str(path),
+                incident_ids=tuple(clip.incident_ids),
+                kind=clip.kind,
+                started_at=self.stream_started_at + timedelta(seconds=clip.start_ts),
+                ended_at=self.stream_started_at + timedelta(seconds=t),
+                bytes=path.stat().st_size,
+                sha256=sha256_file(path),
+                created_at=created,
+                expires_at=created + timedelta(days=self.cfg.retention_days),
+            )
+            self.store.add_clip(record)
+            with self._lock:
+                self.finalized.append(record)
+            log.info("clip %s saved: %s (%d bytes)", clip.id, path.name, record.bytes)
+        except Exception:  # a failed clip must never take down capture
+            log.exception("clip %s finalization failed", clip.id)

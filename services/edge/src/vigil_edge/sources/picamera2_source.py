@@ -79,8 +79,14 @@ class Picamera2CircularBackend:
             return None
         self._output.stop()
         h264, self._h264 = self._h264, None
+        return h264
+
+    def finish(self, raw: Path) -> Path | None:
+        if not raw.is_file():
+            return None
         if not self._remux:
-            return h264
+            return raw
+        h264 = raw
         mp4 = h264.with_suffix(".mp4")
         # Input `-r` forces constant-rate timestamps. `-framerate` is overridden by the
         # stream's VUI timing, which the Pi encoder writes as 2x the frame rate: the
@@ -111,8 +117,9 @@ class Picamera2CircularBackend:
         return h264
 
     def close(self) -> None:
-        if self._h264 is not None:
-            self.stop_clip()
+        raw = self.stop_clip()
+        if raw is not None:
+            self.finish(raw)
 
 
 class Picamera2Source(FrameSource):

@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import threading
+import time
 from datetime import UTC, datetime
 from pathlib import Path
 
 import cv2
 import numpy as np
+import pytest
 
 from vigil_edge.config import RecordingConfig
 from vigil_edge.models import (
@@ -17,7 +20,7 @@ from vigil_edge.models import (
     SignalType,
 )
 from vigil_edge.recording import ClipManager, SoftwareRingBackend, sha256_file
-from vigil_edge.store import LocalStore
+from vigil_edge.store import ClipRecord, LocalStore
 
 FPS = 10.0
 START = datetime(2026, 11, 15, 20, 0, tzinfo=UTC)
@@ -74,6 +77,10 @@ class Rig:
         )
         self.t = 0
 
+    def clips(self) -> list[ClipRecord]:
+        self.mgr.drain()  # finalization runs on a worker thread
+        return self.store.list_clips()
+
     def advance_to(self, seconds: float) -> None:
         while self.t / FPS < seconds:
             self.backend.push(frame(self.t))
@@ -92,7 +99,7 @@ def test_incident_clip_lifecycle(tmp_path: Path) -> None:
     assert rig.mgr.active is not None  # still in post-event tail
     rig.advance_to(51)
     assert rig.mgr.active is None
-    [rec] = rig.store.list_clips()
+    [rec] = rig.clips()
     assert rec.incident_ids == ("i1",)
     assert (rec.ended_at - rec.started_at).total_seconds() == 35.0
     assert rec.sha256 == sha256_file(Path(rec.path))
@@ -122,7 +129,7 @@ def test_overlapping_incidents_share_one_clip(tmp_path: Path) -> None:
     assert rig.mgr.active is not None  # "b" still open
     rig.mgr.handle(ev(IncidentEventType.ENDED, 12, "b", ended=11), 12)
     rig.advance_to(18)
-    [rec] = rig.store.list_clips()
+    [rec] = rig.clips()
     assert rec.incident_ids == ("a", "b")
 
 
@@ -131,7 +138,7 @@ def test_long_episode_is_split(tmp_path: Path) -> None:
     rig.advance_to(1)
     rig.mgr.handle(ev(IncidentEventType.OPENED, 1), 1)
     rig.advance_to(70)
-    assert len(rig.store.list_clips()) == 2
+    assert len(rig.clips()) == 2
     assert rig.mgr.active is not None and rig.mgr.active.open_incidents == {"i1"}
 
 
@@ -140,7 +147,7 @@ def test_shadow_detection_gets_short_clip(tmp_path: Path) -> None:
     rig.advance_to(10)
     rig.mgr.handle(ShadowDetection(10, "vomiting", SignalType.VOMITING, 6, 0.6), 10)
     rig.advance_to(41)
-    [rec] = rig.store.list_clips()
+    [rec] = rig.clips()
     assert rec.kind == "shadow"
     assert (rec.ended_at - rec.started_at).total_seconds() == 35.0
 
@@ -157,4 +164,66 @@ def test_close_finalizes_open_clip(tmp_path: Path) -> None:
     rig.mgr.handle(ev(IncidentEventType.OPENED, 1), 1)
     rig.advance_to(5)
     rig.mgr.close(5)
+    assert len(rig.clips()) == 1
+
+
+class GatedBackend(SoftwareRingBackend):
+    """finish() blocks until released, like a slow ffmpeg remux on a Pi."""
+
+    def __init__(self, fail: bool = False) -> None:
+        super().__init__(30.0, FPS, 160)
+        self.release = threading.Event()
+        self.fail = fail
+
+    def finish(self, raw: Path) -> Path | None:
+        assert self.release.wait(5)
+        if self.fail:
+            raise RuntimeError("remux exploded")
+        return super().finish(raw)
+
+
+def test_slow_finish_does_not_block_capture(tmp_path: Path) -> None:
+    rig = Rig(tmp_path, pre_event_seconds=0.0, post_event_seconds=1.0)
+    gated = GatedBackend()
+    rig.backend = rig.mgr.backend = gated
+    rig.advance_to(1)
+    rig.mgr.handle(ev(IncidentEventType.OPENED, 1), 1)
+    rig.advance_to(3)
+    rig.mgr.handle(ev(IncidentEventType.ENDED, 3, ended=2), 3)
+    t0 = time.perf_counter()
+    rig.advance_to(6)  # passes stop_at: the clip stops while finish() is still blocked
+    assert time.perf_counter() - t0 < 1.0
+    assert rig.mgr.active is None
+    assert rig.mgr.pending_finalizations == 1
+    assert rig.store.list_clips() == []
+    gated.release.set()
+    [rec] = rig.clips()
+    assert rec.sha256 == sha256_file(Path(rec.path))
+    assert rig.mgr.pending_finalizations == 0
+
+
+def test_failed_finish_is_logged_not_raised(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    rig = Rig(tmp_path, pre_event_seconds=0.0)
+    gated = GatedBackend(fail=True)
+    gated.release.set()
+    rig.backend = rig.mgr.backend = gated
+    rig.advance_to(1)
+    rig.mgr.handle(ev(IncidentEventType.OPENED, 1), 1)
+    rig.advance_to(2)
+    rig.mgr.close(2)
+    assert rig.store.list_clips() == []
+    assert "finalization failed" in caplog.text
+
+
+def test_close_waits_for_pending_finalization(tmp_path: Path) -> None:
+    rig = Rig(tmp_path, pre_event_seconds=0.0)
+    gated = GatedBackend()
+    rig.backend = rig.mgr.backend = gated
+    rig.advance_to(1)
+    rig.mgr.handle(ev(IncidentEventType.OPENED, 1), 1)
+    rig.advance_to(2)
+    threading.Timer(0.2, gated.release.set).start()
+    rig.mgr.close(2)
     assert len(rig.store.list_clips()) == 1

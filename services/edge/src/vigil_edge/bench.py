@@ -18,6 +18,7 @@ import contextlib
 import logging
 import platform
 import statistics
+import threading
 import time
 from dataclasses import replace
 from datetime import UTC, datetime
@@ -189,6 +190,22 @@ def bench_camera(
     clip_path = (clip_dir or Path("data/bench")) / "bench-clip.mp4"
     clip_state = "pending"
     clip_file: Path | None = None
+    finish_seconds: float | None = None
+    finisher: threading.Thread | None = None
+
+    def finish(raw: Path) -> None:  # off the capture loop, as in the service
+        nonlocal clip_file, finish_seconds
+        t0 = time.perf_counter()
+        clip_file = backend.finish(raw)
+        finish_seconds = round(time.perf_counter() - t0, 2)
+
+    def stop() -> None:
+        nonlocal finisher
+        raw = backend.stop_clip()
+        if raw is not None:
+            finisher = threading.Thread(target=finish, args=(raw,), name="clip-finalize")
+            finisher.start()
+
     start = time.monotonic()
     next_sample = start + 5
     try:
@@ -201,7 +218,7 @@ def bench_camera(
                 backend.start_clip(clip_path, 0.0)
                 clip_state = "recording"
             elif clip_state == "recording" and now - start > seconds / 3 + 10:
-                clip_file = backend.stop_clip()
+                stop()
                 clip_state = "done"
             if now >= next_sample:
                 next_sample = now + 5
@@ -217,7 +234,9 @@ def bench_camera(
                 break
     finally:
         if clip_state == "recording":
-            clip_file = backend.stop_clip()
+            stop()
+        if finisher is not None:
+            finisher.join()
         src.close()
     elapsed = time.monotonic() - start
     temps = [s["temperature_c"] for s in samples if s["temperature_c"] is not None]
@@ -248,6 +267,8 @@ def bench_camera(
         "test_clip": {
             "path": str(clip_file) if clip_file else None,
             "bytes": clip_file.stat().st_size if clip_file and clip_file.exists() else None,
+            "finish_seconds": finish_seconds,
+            "note": "stopped in the capture loop, finished (remux) on a worker thread",
         },
         "samples": samples,
     }

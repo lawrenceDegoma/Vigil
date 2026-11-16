@@ -204,7 +204,9 @@ def test_remux_uses_configured_fps_not_stream_timing(tmp_path: Path) -> None:
 
     be = Picamera2CircularBackend(CopyOutput(450), fps=15, remux=True)
     be.start_clip(tmp_path / "clip.mp4", from_ts=0)
-    path = be.stop_clip()
+    raw = be.stop_clip()
+    assert raw == tmp_path / "clip.h264"  # stop is fast; remux happens in finish()
+    path = be.finish(raw)
     assert path == tmp_path / "clip.mp4"
     assert not (tmp_path / "clip.h264").exists()
     duration = float(
