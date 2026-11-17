@@ -69,14 +69,16 @@ sudo sh -c "cp -r /var/lib/vigil/bench-*.json /var/lib/vigil/data/bench $HOME/" 
 ```
 On the Mac: `scp -r vigil-pi:'bench*' docs/benchmarks/`. Rename the JSON files with a date, commit them (not the test clip), and watch the clip. **Decision criteria:**
 
+**Hard gate** (ADR-018). It must pass here and hold through the 24 h soak:
+
 | Measure | Target | If missed |
 |---|---|---|
-| Delivered fps (camera bench) | ≥ 14.5 of 15 requested, dropped frames < 1 % | lower `analysis_size`, turn off `motion.flow`, or drop to 10 fps |
-| Analysis ms/frame p95 | < 40 ms (≤ 60 % of the 66 ms frame budget) | try the 240 px / 160 px variants |
-| Process CPU | < 60 % of one core (leaves headroom for the encoder and OS) | same as above |
-| Peak temperature | < 75 °C sustained, `throttled = 0x0` | improve cooling or power |
+| Delivered fps (camera bench) | ≥ 14.5 of 15 requested, dropped frames < 1 % | look for stalls in the capture loop first (sampler gaps in the report), then lower `analysis_size`, turn off `motion.flow`, or drop to 10 fps (re-validate detection) |
+| Analysis ms/frame p95 | below the frame budget (66.7 ms at 15 fps) | try the 240 px / 160 px variants (re-validate detection) |
 | Peak RSS | < 250 MB | investigate |
-| Test clip | plays, includes lead-in, correct framing | check encoder/ffmpeg |
+| Test clip | plays at normal speed, includes lead-in, correct framing | check encoder/ffmpeg |
+
+**Warning thresholds** (watch, not blocking): analysis p95 > 40 ms; process CPU > 60 % of one core; temperature ≥ 60 °C or `throttled` ≠ `0x0`. The Pi 3 B+ slows from 1.4 to 1.2 GHz at 60 °C. Add a heatsink and keep the case ventilated. Analysis cost rises with motion in view, so benchmark with a fixed camera and judge with realistic activity.
 
 Only consider a Pi 5 or mini PC if the reduced variants still miss these targets. A Pi 5 has **no hardware H.264 encoder**, so it would need a software-encoder clip backend.
 
