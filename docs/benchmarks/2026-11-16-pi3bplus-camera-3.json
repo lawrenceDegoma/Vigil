@@ -1,0 +1,419 @@
+{
+  "kind": "camera",
+  "measured_at": "2026-11-17T00:06:28+00:00",
+  "vigil_edge_version": "0.1.0",
+  "host": {
+    "cpu": "Raspberry Pi 3 Model B Plus Rev 1.3",
+    "machine": "aarch64",
+    "system": "Linux",
+    "release": "6.18.60+rpt-rpi-v8",
+    "python": "3.13.5",
+    "processor": null,
+    "model": "Raspberry Pi 3 Model B Plus Rev 1.3",
+    "opencv": "4.10.0",
+    "cv_threads": 4
+  },
+  "camera": {
+    "main_size": [
+      1280,
+      720
+    ],
+    "analysis_size": [
+      320,
+      180
+    ],
+    "fps_requested": 15.0,
+    "bitrate": 2000000
+  },
+  "seconds": 300.7,
+  "frames_analysed": 4501,
+  "delivered_fps": 14.97,
+  "dropped_frames": 0,
+  "ms_per_frame": {
+    "mean": 26.089,
+    "p50": 22.919,
+    "p95": 47.052,
+    "max": 83.564
+  },
+  "stage_ms_per_frame": {
+    "preprocess": 0.615,
+    "motion": 24.115,
+    "window": 1.253,
+    "detect": 0.026,
+    "incident": 0.005,
+    "observers": 0.028
+  },
+  "cpu_percent": {
+    "mean": 77.639,
+    "p50": 67.5,
+    "p95": 101.1,
+    "max": 106.7
+  },
+  "temperature_c": {
+    "max": 58.0
+  },
+  "throttled": "0x80000",
+  "peak_rss_mb": 166.9,
+  "test_clip": {
+    "path": "data/bench/bench-clip.mp4",
+    "bytes": 4965546,
+    "finish_seconds": 1.38,
+    "note": "stopped in the capture loop, finished (remux) on a worker thread"
+  },
+  "samples": [
+    {
+      "t": 5.0,
+      "cpu_percent": 106.7,
+      "temperature_c": 42.9,
+      "memory_used_percent": 31.1
+    },
+    {
+      "t": 10.0,
+      "cpu_percent": 104.2,
+      "temperature_c": 43.5,
+      "memory_used_percent": 31.1
+    },
+    {
+      "t": 15.1,
+      "cpu_percent": 96.5,
+      "temperature_c": 44.0,
+      "memory_used_percent": 31.2
+    },
+    {
+      "t": 20.2,
+      "cpu_percent": 91.0,
+      "temperature_c": 44.0,
+      "memory_used_percent": 31.3
+    },
+    {
+      "t": 25.2,
+      "cpu_percent": 85.3,
+      "temperature_c": 44.0,
+      "memory_used_percent": 31.4
+    },
+    {
+      "t": 30.3,
+      "cpu_percent": 91.8,
+      "temperature_c": 45.6,
+      "memory_used_percent": 31.4
+    },
+    {
+      "t": 35.4,
+      "cpu_percent": 93.2,
+      "temperature_c": 46.2,
+      "memory_used_percent": 31.4
+    },
+    {
+      "t": 40.4,
+      "cpu_percent": 93.0,
+      "temperature_c": 46.7,
+      "memory_used_percent": 31.5
+    },
+    {
+      "t": 45.5,
+      "cpu_percent": 88.2,
+      "temperature_c": 47.2,
+      "memory_used_percent": 31.5
+    },
+    {
+      "t": 50.5,
+      "cpu_percent": 67.2,
+      "temperature_c": 47.2,
+      "memory_used_percent": 31.5
+    },
+    {
+      "t": 55.6,
+      "cpu_percent": 65.1,
+      "temperature_c": 47.2,
+      "memory_used_percent": 31.5
+    },
+    {
+      "t": 60.7,
+      "cpu_percent": 64.0,
+      "temperature_c": 47.8,
+      "memory_used_percent": 31.5
+    },
+    {
+      "t": 65.7,
+      "cpu_percent": 65.9,
+      "temperature_c": 48.3,
+      "memory_used_percent": 31.5
+    },
+    {
+      "t": 70.7,
+      "cpu_percent": 64.8,
+      "temperature_c": 48.3,
+      "memory_used_percent": 31.5
+    },
+    {
+      "t": 75.8,
+      "cpu_percent": 64.4,
+      "temperature_c": 48.3,
+      "memory_used_percent": 31.5
+    },
+    {
+      "t": 80.9,
+      "cpu_percent": 63.1,
+      "temperature_c": 48.9,
+      "memory_used_percent": 31.6
+    },
+    {
+      "t": 85.9,
+      "cpu_percent": 65.5,
+      "temperature_c": 49.4,
+      "memory_used_percent": 31.6
+    },
+    {
+      "t": 91.0,
+      "cpu_percent": 66.0,
+      "temperature_c": 49.4,
+      "memory_used_percent": 31.6
+    },
+    {
+      "t": 96.0,
+      "cpu_percent": 66.9,
+      "temperature_c": 49.4,
+      "memory_used_percent": 31.8
+    },
+    {
+      "t": 101.1,
+      "cpu_percent": 64.1,
+      "temperature_c": 51.0,
+      "memory_used_percent": 31.8
+    },
+    {
+      "t": 106.1,
+      "cpu_percent": 67.1,
+      "temperature_c": 50.5,
+      "memory_used_percent": 31.3
+    },
+    {
+      "t": 111.1,
+      "cpu_percent": 65.5,
+      "temperature_c": 51.5,
+      "memory_used_percent": 33.2
+    },
+    {
+      "t": 116.2,
+      "cpu_percent": 67.5,
+      "temperature_c": 51.5,
+      "memory_used_percent": 31.6
+    },
+    {
+      "t": 121.3,
+      "cpu_percent": 63.4,
+      "temperature_c": 51.5,
+      "memory_used_percent": 31.5
+    },
+    {
+      "t": 126.3,
+      "cpu_percent": 67.1,
+      "temperature_c": 51.5,
+      "memory_used_percent": 31.5
+    },
+    {
+      "t": 131.3,
+      "cpu_percent": 62.7,
+      "temperature_c": 52.1,
+      "memory_used_percent": 31.5
+    },
+    {
+      "t": 136.3,
+      "cpu_percent": 69.3,
+      "temperature_c": 52.1,
+      "memory_used_percent": 31.5
+    },
+    {
+      "t": 141.4,
+      "cpu_percent": 98.9,
+      "temperature_c": 52.6,
+      "memory_used_percent": 31.5
+    },
+    {
+      "t": 146.5,
+      "cpu_percent": 89.0,
+      "temperature_c": 52.6,
+      "memory_used_percent": 31.5
+    },
+    {
+      "t": 151.5,
+      "cpu_percent": 68.5,
+      "temperature_c": 52.6,
+      "memory_used_percent": 31.4
+    },
+    {
+      "t": 156.6,
+      "cpu_percent": 65.0,
+      "temperature_c": 52.6,
+      "memory_used_percent": 31.4
+    },
+    {
+      "t": 161.6,
+      "cpu_percent": 76.4,
+      "temperature_c": 53.2,
+      "memory_used_percent": 31.3
+    },
+    {
+      "t": 166.6,
+      "cpu_percent": 67.6,
+      "temperature_c": 53.2,
+      "memory_used_percent": 31.3
+    },
+    {
+      "t": 171.7,
+      "cpu_percent": 66.2,
+      "temperature_c": 53.7,
+      "memory_used_percent": 31.2
+    },
+    {
+      "t": 176.7,
+      "cpu_percent": 66.4,
+      "temperature_c": 53.7,
+      "memory_used_percent": 31.2
+    },
+    {
+      "t": 181.7,
+      "cpu_percent": 64.3,
+      "temperature_c": 53.7,
+      "memory_used_percent": 31.3
+    },
+    {
+      "t": 186.8,
+      "cpu_percent": 65.1,
+      "temperature_c": 53.7,
+      "memory_used_percent": 31.3
+    },
+    {
+      "t": 191.8,
+      "cpu_percent": 63.4,
+      "temperature_c": 53.7,
+      "memory_used_percent": 31.3
+    },
+    {
+      "t": 196.9,
+      "cpu_percent": 63.3,
+      "temperature_c": 53.7,
+      "memory_used_percent": 31.3
+    },
+    {
+      "t": 202.0,
+      "cpu_percent": 66.6,
+      "temperature_c": 54.2,
+      "memory_used_percent": 31.3
+    },
+    {
+      "t": 207.1,
+      "cpu_percent": 69.1,
+      "temperature_c": 54.2,
+      "memory_used_percent": 31.3
+    },
+    {
+      "t": 212.1,
+      "cpu_percent": 64.3,
+      "temperature_c": 54.2,
+      "memory_used_percent": 31.3
+    },
+    {
+      "t": 217.1,
+      "cpu_percent": 63.8,
+      "temperature_c": 54.8,
+      "memory_used_percent": 31.3
+    },
+    {
+      "t": 222.1,
+      "cpu_percent": 65.4,
+      "temperature_c": 54.8,
+      "memory_used_percent": 31.3
+    },
+    {
+      "t": 227.2,
+      "cpu_percent": 64.9,
+      "temperature_c": 54.2,
+      "memory_used_percent": 31.3
+    },
+    {
+      "t": 232.2,
+      "cpu_percent": 66.1,
+      "temperature_c": 55.3,
+      "memory_used_percent": 31.3
+    },
+    {
+      "t": 237.3,
+      "cpu_percent": 75.4,
+      "temperature_c": 55.3,
+      "memory_used_percent": 31.3
+    },
+    {
+      "t": 242.3,
+      "cpu_percent": 98.9,
+      "temperature_c": 55.8,
+      "memory_used_percent": 31.3
+    },
+    {
+      "t": 247.4,
+      "cpu_percent": 91.9,
+      "temperature_c": 55.8,
+      "memory_used_percent": 31.3
+    },
+    {
+      "t": 252.4,
+      "cpu_percent": 77.8,
+      "temperature_c": 55.8,
+      "memory_used_percent": 31.3
+    },
+    {
+      "t": 257.5,
+      "cpu_percent": 100.3,
+      "temperature_c": 56.4,
+      "memory_used_percent": 31.3
+    },
+    {
+      "t": 262.5,
+      "cpu_percent": 100.9,
+      "temperature_c": 55.8,
+      "memory_used_percent": 31.4
+    },
+    {
+      "t": 267.5,
+      "cpu_percent": 100.8,
+      "temperature_c": 56.4,
+      "memory_used_percent": 31.4
+    },
+    {
+      "t": 272.6,
+      "cpu_percent": 99.9,
+      "temperature_c": 56.4,
+      "memory_used_percent": 31.4
+    },
+    {
+      "t": 277.6,
+      "cpu_percent": 96.3,
+      "temperature_c": 56.9,
+      "memory_used_percent": 31.4
+    },
+    {
+      "t": 282.7,
+      "cpu_percent": 100.7,
+      "temperature_c": 58.0,
+      "memory_used_percent": 31.4
+    },
+    {
+      "t": 287.8,
+      "cpu_percent": 101.1,
+      "temperature_c": 58.0,
+      "memory_used_percent": 31.4
+    },
+    {
+      "t": 292.8,
+      "cpu_percent": 96.5,
+      "temperature_c": 57.5,
+      "memory_used_percent": 31.4
+    },
+    {
+      "t": 297.9,
+      "cpu_percent": 96.4,
+      "temperature_c": 58.0,
+      "memory_used_percent": 31.4
+    }
+  ]
+}
