@@ -79,7 +79,7 @@ Complementary feature: **limb or whole-body extent of motion**. Episode paddling
 
 ### ADR-016 — Wall clock without an RTC
 **Status:** proposed (2026-11-15) — implement in Phase 3
-The Pi 3 has no real-time clock. After a boot without network, UTC can be wrong until NTP syncs. Detection is unaffected (monotonic stream offsets, ADR-008). Phase 3: include a `clock_synced` flag (from `timedatectl show -p NTPSynchronized`) in heartbeats and events, and have the cloud prefer its own receive time when the device clock is unsynced.
+The Pi 3 has no real-time clock. After a boot without network, UTC can be wrong until NTP syncs. Detection is unaffected (monotonic stream offsets, ADR-008). Phase 3: include a `clock_synced` flag (from `timedatectl show -p NTPSynchronized`) in heartbeats and events, and have the cloud prefer its own receive time when the device clock is unsynced. *Observed 2026-11-19:* after a power-off move, the Pi booted with its clock about 8 minutes behind (the time saved at shutdown). NTP corrected it 42 s after boot. The first heartbeat (monotonic 30.9 s) carried the stale UTC time, and the next one (90.96 s, exactly 60 s later by monotonic time) appeared to be 8.5 minutes later in the log. Detection was unaffected.
 
 
 ### ADR-017 — Pixels on the subject: framing target and analysis crop
