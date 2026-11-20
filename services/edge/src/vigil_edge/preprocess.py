@@ -34,6 +34,10 @@ class Preprocessor:
         width = min(cfg.width, src_w)  # never upscale
         height = max(2, round(src_h * width / src_w))
         self.size: tuple[int, int] = (width, height)
+        # INTER_AREA is the right filter for large reductions but very slow for small
+        # non-integer ones (6.9 ms vs 0.9 ms on a Pi 3 for 422->384 px, 2026-11-19); below
+        # 2x, bilinear is indistinguishable after the blur that follows.
+        self._interp = cv2.INTER_AREA if src_w >= 2 * width else cv2.INTER_LINEAR
         self._blur = cfg.blur_kernel if cfg.blur_kernel > 1 else 0
         self.roi_mask: Image = self._build_mask(roi, self.size)
         self.roi_pixels = int(np.count_nonzero(self.roi_mask))
@@ -56,7 +60,7 @@ class Preprocessor:
             image = image[y0:y1, x0:x1]
         if (image.shape[1], image.shape[0]) == self.size:
             return image
-        out: Image = cv2.resize(image, self.size, interpolation=cv2.INTER_AREA)
+        out: Image = cv2.resize(image, self.size, interpolation=self._interp)
         return out
 
     def __call__(self, image: Image) -> Image:

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import cv2
 import numpy as np
 import pytest
 
@@ -61,3 +62,21 @@ def test_invalid_crop_rejected() -> None:
 
     with pytest.raises(ConfigError):
         PreprocessConfig(crop=(0.5, 0.5, 0.8, 0.2))
+
+
+def test_small_downscale_uses_bilinear_large_uses_area() -> None:
+    rng = np.random.default_rng(1)
+    img = cv2.GaussianBlur(rng.integers(0, 255, (360, 640), dtype=np.uint8), (9, 9), 0)
+    crop = (0.14, 0.28, 0.66, 0.57)  # owner deployment: 422x205 crop -> 384 px
+    p = Preprocessor(PreprocessConfig(width=384, crop=crop, blur_kernel=0), (640, 360))
+    out = p(img)
+    region = img[101:306, 90:512]
+    assert out.shape == (187, 384)
+    linear = cv2.resize(region, (384, 187), interpolation=cv2.INTER_LINEAR)
+    area = cv2.resize(region, (384, 187), interpolation=cv2.INTER_AREA)
+    assert np.array_equal(out, linear)
+    assert np.abs(out.astype(int) - area.astype(int)).mean() < 2.0  # same picture
+    big = Preprocessor(PreprocessConfig(width=320, blur_kernel=0), (1280, 720))
+    assert np.array_equal(big(cv2.resize(img, (1280, 720))),
+                          cv2.resize(cv2.resize(img, (1280, 720)), (320, 180),
+                                     interpolation=cv2.INTER_AREA))  # fmt: skip
