@@ -1,0 +1,18 @@
+{
+  "name": "vigil-backend-tooling",
+  "private": true,
+  "description": "Pinned tooling for the Supabase backend (Phase 3). Python edge code uses uv, not npm.",
+  "scripts": {
+    "db:start": "supabase start",
+    "db:stop": "supabase stop",
+    "db:reset": "supabase db reset",
+    "db:test": "supabase test db",
+    "fn:serve": "supabase functions serve --env-file supabase/functions/.env.local",
+    "fn:test": "deno test --allow-env --allow-net --allow-read supabase/functions/_shared",
+    "fn:check": "deno check supabase/functions/*/index.ts supabase/functions/_shared/*.ts && deno lint supabase/functions && deno fmt --check supabase/functions"
+  },
+  "devDependencies": {
+    "deno": "2.9.6",
+    "supabase": "2.122.1"
+  }
+}

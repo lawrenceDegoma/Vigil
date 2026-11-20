@@ -38,3 +38,11 @@ apps/web/dist/
 .DS_Store
 .idea/
 .vscode/
+
+# Node tooling (backend)
+node_modules/
+
+# Supabase local state
+supabase/.branches/
+supabase/.temp/
+supabase/functions/.env.local
