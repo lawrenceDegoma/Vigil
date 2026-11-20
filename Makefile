@@ -2,7 +2,7 @@
 EDGE := services/edge
 UV   := uv --directory $(EDGE)
 
-.PHONY: help setup test test-fast lint format typecheck check demo analyze evaluate bench simulate pi-compat clean
+.PHONY: help setup test test-fast lint format typecheck check demo analyze evaluate bench simulate pi-compat clean backend-setup backend-check sms-dry-run
 
 help:
 	@echo "setup      install the edge dev environment (uv, Python 3.11)"
@@ -18,6 +18,9 @@ help:
 	@echo "bench      offline analysis benchmark on this machine"
 	@echo "simulate   run the live service on a looping synthetic scenario (Ctrl-C to stop)"
 	@echo "pi-compat  run tests on Debian Bookworm arm64 with apt OpenCV/NumPy (Docker)"
+	@echo "backend-setup  install pinned Supabase CLI + Deno (npm) and start the local stack (Docker)"
+	@echo "backend-check  Deno fmt/lint/type-check + unit tests + pgTAP database tests"
+	@echo "sms-dry-run    end-to-end alert/reminder/offline dry run, mock SMS only (Phase 3 gate)"
 
 setup:
 	$(UV) sync --python 3.11 --extra plot
@@ -59,6 +62,21 @@ pi-compat:
 
 simulate:
 	uv run --project $(EDGE) vigil run --source synthetic:mixed --loop --data-dir data/edge-sim
+
+backend-setup:
+	npm ci --no-fund --no-audit
+	npx supabase start
+
+FN := --config supabase/functions/deno.json
+backend-check:
+	npx deno fmt $(FN) --check supabase/functions supabase/tests/e2e
+	npx deno lint $(FN) supabase/functions supabase/tests/e2e
+	npx deno check $(FN) supabase/functions/*/index.ts supabase/functions/_shared/*.ts supabase/tests/e2e/*.ts
+	npx deno test $(FN) --allow-read supabase/functions/_shared
+	npx supabase test db
+
+sms-dry-run:
+	./scripts/sms-dry-run.sh
 
 clean:
 	rm -rf runs $(EDGE)/.pytest_cache $(EDGE)/.mypy_cache $(EDGE)/.ruff_cache

@@ -21,8 +21,7 @@ docs/                design spec, decision log, detection notes
 packages/contracts/  versioned JSON Schemas for device↔cloud messages
 services/edge/       Python edge service (capture, analysis, incidents, clips, health)
 deploy/pi/           Raspberry Pi installer, systemd unit, journald limits
-services/backend/    server-side functions (Phase 3)
-supabase/            migrations + RLS policies (Phase 3)
+supabase/            Phase 3 backend: migrations, RLS, Edge Functions, tests
 apps/web/            React dashboard (Phase 4)
 ```
 

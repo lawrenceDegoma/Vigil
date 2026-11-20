@@ -1,0 +1,18 @@
+{
+  "schema_version": "incident-event.v1",
+  "event_id": "6330bdd0-ec82-432b-99c3-fbe491c81262",
+  "device_id": "pi-livingroom",
+  "incident_id": "c815ad78-26fd-4124-8159-b201d281b02a",
+  "follows_incident_id": null,
+  "event_type": "incident_ended",
+  "signal_type": "convulsion",
+  "severity": "urgent",
+  "occurred_at": "2026-11-20T08:23:16.137Z",
+  "started_at": "2026-11-20T08:22:06.721Z",
+  "ended_at": "2026-11-20T08:23:08.137Z",
+  "confidence": 1.0,
+  "rule_version": "motion-rules-0.1.0+c4ca5cab",
+  "features": {
+    "end_reason": "quiet"
+  }
+}

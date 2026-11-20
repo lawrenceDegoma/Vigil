@@ -1,0 +1,30 @@
+{
+  "schema_version": "heartbeat.v1",
+  "device_id": "pi-livingroom",
+  "sent_at": "2026-11-20T08:21:46.630Z",
+  "software_version": "0.1.0",
+  "maintenance": false,
+  "camera": {
+    "ok": false,
+    "last_frame_at": null,
+    "fps": 0.0,
+    "dropped_frames": 0,
+    "error": null
+  },
+  "detector": {
+    "ok": false,
+    "last_window_at": null,
+    "processing_fps": 0.0,
+    "rule_version": "motion-rules-0.1.0+c4ca5cab",
+    "error": null
+  },
+  "storage": {
+    "free_bytes": 520173178880,
+    "total_bytes": 994662584320,
+    "recordings_bytes": 0
+  },
+  "queue_depth": 0,
+  "temperature_c": null,
+  "cpu_percent": 0.0,
+  "memory_used_percent": null
+}

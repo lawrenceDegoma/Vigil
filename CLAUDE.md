@@ -65,8 +65,10 @@ services/edge/             # Python edge service (uv project, src layout)
     bench.py               # offline + live-camera benchmarks
     cli.py                 # `vigil analyze | evaluate | synth | config | run | bench | clips | health | maintenance`
   tests/                   # unit + integration (synthetic end-to-end); helpers.py builders
-services/backend/          # Phase 3
-supabase/                  # Phase 3 migrations/policies
+supabase/                  # Phase 3 backend (local stack via pinned CLI in package.json; Docker)
+  migrations/              # schema, RLS/grants + RPCs, private.* ingestion/notification engine
+  functions/               # Deno Edge Functions: device-ingest, dispatch; _shared/ logic + unit tests
+  tests/database/          # pgTAP: permissions + engine; tests/e2e/: SMS dry run
 apps/web/                  # Phase 4
 deploy/pi/                 # install.sh, vigil-edge.service (Type=notify, watchdog, hardened), journald limits
 scripts/                   # reproducible dev scripts
@@ -84,6 +86,9 @@ uv run --project services/edge vigil config --set key=value # effective config +
 make simulate   # live service on looping synthetic input (data/edge-sim)
 make bench      # offline analysis benchmark (on the Pi: see docs/PI_SETUP.md)
 make pi-compat  # full tests on Debian Bookworm arm64 + apt OpenCV 4.6/NumPy 1.24 (Docker) — run before Pi deploys
+make backend-setup   # npm ci (pinned supabase CLI 2.122.1 + deno 2.9.6) + local Supabase stack
+make backend-check   # deno fmt/lint/check + unit tests + pgTAP database tests
+make sms-dry-run     # Phase 3 gate: end-to-end alerts/reminders/offline with the MOCK provider
 ```
 
 ## Conventions

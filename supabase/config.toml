@@ -414,3 +414,10 @@ enabled = true
 # formatted with uppercase keywords, indent 2, max width 180, trailing commas,
 # and column/key alignment. Set to "null" to emit raw, unformatted SQL.
 # format_options = "{\"keywordCase\":\"upper\",\"indent\":2,\"maxWidth\":180,\"commaStyle\":\"trailing\"}"
+
+# Vigil Edge Functions authenticate their own callers (device token / dispatch secret).
+[functions.device-ingest]
+verify_jwt = false
+
+[functions.dispatch]
+verify_jwt = false
