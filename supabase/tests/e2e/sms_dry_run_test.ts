@@ -197,6 +197,53 @@ Deno.test({
         },
       );
 
+      await t.step(
+        "the real Python edge pipeline alerts the family through the cloud",
+        async () => {
+          // Synthetic convulsion -> detector -> incident FSM -> SQLite outbox -> CloudSync ->
+          // device-ingest -> engine -> mock SMS. Same code path as the Pi, minus the camera.
+          const dataDir = await Deno.makeTempDir({ prefix: "vigil-e2e-" });
+          try {
+            const out = await new Deno.Command("uv", {
+              args: [
+                "run",
+                "--project",
+                "services/edge",
+                "vigil",
+                "run",
+                "--source",
+                "synthetic:convulsion",
+                "--fast",
+                "--data-dir",
+                dataDir,
+                "--device-id",
+                deviceKey,
+                "--set",
+                "recording.enabled=false",
+                "--set",
+                "cloud.enabled=true",
+                "--set",
+                `cloud.endpoint=${FN_URL}`,
+              ],
+              cwd: new URL("../../../", import.meta.url).pathname,
+              env: { VIGIL_DEVICE_TOKEN: token, VIGIL_LOG_LEVEL: "WARNING" },
+              stdout: "piped",
+              stderr: "piped",
+            }).output();
+            assert(out.success, new TextDecoder().decode(out.stderr).slice(-2000));
+          } finally {
+            await Deno.remove(dataDir, { recursive: true });
+          }
+          const [edgeIncident] = await sql`select id, signal_type, severity, ended_at
+          from public.incidents where device_id = ${deviceId} and id <> ${incident}`;
+          assertEquals([edgeIncident.signal_type, edgeIncident.severity], ["convulsion", "urgent"]);
+          assert(edgeIncident.ended_at !== null, "incident_ended was delivered too");
+          const alerts = await sent("incident_alert", edgeIncident.id);
+          assertEquals(alerts.map((a) => a.to_e164), [phones.admin, phones.fam1, phones.fam2]);
+          assert(alerts.every((a) => a.status === "sent" && a.body.startsWith("Vigil URGENT:")));
+        },
+      );
+
       await t.step("no full phone numbers in function logs (checked by the script)", () => {});
     } finally {
       await teardown();

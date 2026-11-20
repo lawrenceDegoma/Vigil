@@ -292,6 +292,37 @@ class ServiceConfig:
 
 
 @dataclass(frozen=True)
+class CloudConfig:
+    """Phase 3 cloud sync: deliver the outbox to the backend's device-ingest function.
+
+    The device token comes from the VIGIL_DEVICE_TOKEN environment variable
+    (/etc/vigil/vigil.env), never from this file. Detection never depends on it.
+    """
+
+    enabled: bool = False
+    endpoint: str = ""  # Edge Functions base URL, e.g. https://<project>.supabase.co/functions/v1
+    batch_size: int = 50  # outbox rows per request (the server accepts up to 100)
+    interval_seconds: float = 5.0  # poll interval; incident events wake the sender at once
+    timeout_seconds: float = 10.0
+    max_backoff_seconds: float = 300.0
+    max_rejections: int = 5  # a message the server rejects this often is parked, not retried
+
+    def __post_init__(self) -> None:
+        if self.enabled:
+            local = self.endpoint.startswith(("http://127.0.0.1", "http://localhost"))
+            if not (self.endpoint.startswith("https://") or local):
+                raise ConfigError("cloud.endpoint must be https:// (http only for localhost)")
+        if not (1 <= self.batch_size <= 100):
+            raise ConfigError("cloud.batch_size must be within [1, 100]")
+        if self.interval_seconds < 1 or not (1 <= self.timeout_seconds <= 60):
+            raise ConfigError("cloud.interval_seconds >= 1 and timeout_seconds within [1, 60]")
+        if self.max_backoff_seconds < self.interval_seconds:
+            raise ConfigError("cloud.max_backoff_seconds must be >= interval_seconds")
+        if self.max_rejections < 1:
+            raise ConfigError("cloud.max_rejections must be >= 1")
+
+
+@dataclass(frozen=True)
 class VigilConfig:
     subject: SubjectConfig = field(default_factory=SubjectConfig)
     source: SourceConfig = field(default_factory=SourceConfig)
@@ -303,6 +334,7 @@ class VigilConfig:
     recording: RecordingConfig = field(default_factory=RecordingConfig)
     camera: CameraConfig = field(default_factory=CameraConfig)
     service: ServiceConfig = field(default_factory=ServiceConfig)
+    cloud: CloudConfig = field(default_factory=CloudConfig)
 
     def __post_init__(self) -> None:
         nyquist = self.source.target_fps / 2.0
@@ -319,7 +351,7 @@ class VigilConfig:
     @property
     def rule_version(self) -> str:
         """Rule-set version plus a hash of every detection-relevant setting."""
-        ignored = ("subject", "recording", "camera", "service")
+        ignored = ("subject", "recording", "camera", "service", "cloud")
         relevant = {k: v for k, v in config_to_dict(self).items() if k not in ignored}
         digest = hashlib.sha256(json.dumps(relevant, sort_keys=True).encode()).hexdigest()
         return f"{RULES_VERSION}+{digest[:8]}"

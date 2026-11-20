@@ -108,3 +108,12 @@ camera_stall_seconds = 5.0
 reconnect_min_seconds = 1.0
 reconnect_max_seconds = 60.0
 outbox_max_rows = 20000
+
+[cloud]                    # Phase 3: deliver incident events + heartbeats to the backend
+enabled = false
+endpoint = ""              # Edge Functions base URL (https); device token: VIGIL_DEVICE_TOKEN env var
+batch_size = 50
+interval_seconds = 5.0     # incident events are sent immediately; this paces heartbeats/retries
+timeout_seconds = 10.0
+max_backoff_seconds = 300.0
+max_rejections = 5         # messages the server keeps rejecting are parked (still counted in queue_depth)

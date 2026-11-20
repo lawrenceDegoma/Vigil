@@ -502,7 +502,7 @@ def cmd_run(args: argparse.Namespace) -> int:
     factory = make_source_factory(
         args.source, cfg, realtime=not args.fast, loop=args.loop, speed=args.speed
     )
-    service = EdgeService(cfg, factory)
+    service = EdgeService(cfg, factory, cloud_token=os.environ.get("VIGIL_DEVICE_TOKEN"))
 
     def stop(signum: int, _frame: object) -> None:
         logging.getLogger("vigil").info("signal %d: shutting down", signum)

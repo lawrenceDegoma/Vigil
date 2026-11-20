@@ -102,3 +102,14 @@ The original PI_SETUP §4 targets mixed real requirements with conservative marg
 ### ADR-019 — No live camera view on phones (for now)
 **Status:** accepted by the owner (2026-11-20)
 A live view on phones stays out of scope (DESIGN §3, "unrestricted remote live stream"). On the Pi 3 it would add encoder/network load to a device already at its soft thermal limit (docs/benchmarks, runs 4–5). It would also mean on-demand living-room video leaving the house. Camera aiming uses the temporary LAN-only `rpicam-vid --listen` + `ffplay` method (PI_SETUP). Phones get incident clips (ADR-010) and device status. Revisit on stronger hardware, as a design change with its own ADR.
+
+### ADR-020 — Device-to-cloud delivery and alert fan-out semantics
+**Status:** accepted (2026-11-20)
+- **Device to cloud.** The edge SQLite outbox is the source of truth. `CloudSync` (its own thread) posts batches to `device-ingest`, authenticated with a per-device token. The token is stored server-side only as a SHA-256 hash and on the device only in `/etc/vigil/vigil.env`. A row is marked sent only when the server answers `accepted` or `duplicate` for it, so delivery is **at-least-once**, made safe by server idempotency on `event_id`. Outages back off exponentially (5 s up to 300 s). Queuing an incident event wakes the sender immediately, even during backoff. A message the server rejects `max_rejections` times is **parked**: kept on the device and counted in `queue_depth`, but no longer retried, so a contract bug cannot block alerts queued behind it.
+- **Server ingestion.** Ingestion tolerates reordering: any event type can create the incident; only newer events change mutable fields; severity and confidence only ratchet up. A device can only touch its own incidents.
+- **Fan-out.** Each alert is queued once per distinct household phone number, then sent concurrently. Severity escalation alerts again. Freshness uses the cloud receive time (ADR-016).
+- **Reminders.** Reminders follow **acknowledgement**, not episode end: any status other than `open` stops them, and they never apply to warnings. One or two rounds at a configurable interval (default 5 min).
+- **Admin-only notices.** Offline and recovery notices go to the admin only, never during maintenance, and once per outage.
+- **Rate cap.** An hourly per-household cap protects against message storms, but never applies to first urgent alerts.
+- **Delivery to phones.** At-least-once with leases: a crash between sending and recording can produce a duplicate text, which is preferred over a missed alert.
+- **Real SMS.** The mock provider is the default. Twilio refuses to start without `SMS_LIVE_APPROVED=yes` (owner approval). Logs mask phone numbers.

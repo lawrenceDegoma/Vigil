@@ -7,6 +7,9 @@ Structure:
   outbox. Camera failures end the *session*; the loop reconnects with
   exponential backoff. Open incidents are closed with ``stream_end`` when a
   session ends, so state never silently persists across a camera outage.
+* **Cloud sync thread** (optional, ``[cloud]``): delivers the outbox to the
+  backend (``sync.py``). Incident events wake it immediately; detection never
+  waits on the network.
 * **Housekeeping thread**: heartbeats (local file + outbox), retention, the
   maintenance flag, outbox bounds, and the systemd watchdog. It runs even
   when the capture loop is blocked, so a stalled camera is *reported*, and
@@ -43,6 +46,7 @@ from vigil_edge.recording import ClipBackend, ClipManager, SoftwareRingBackend
 from vigil_edge.retention import GB, RetentionManager, RetentionPolicy
 from vigil_edge.sources.base import FrameSource, SourceError
 from vigil_edge.store import LocalStore, utc_iso
+from vigil_edge.sync import CloudSync, Transport, urllib_transport
 
 log = logging.getLogger(__name__)
 
@@ -103,6 +107,8 @@ class EdgeService:
         backend_factory: BackendFactory = default_backend,
         sleep: Callable[[float], None] = time.sleep,
         notify: Callable[[str], bool] = systemd.notify,
+        cloud_token: str | None = None,
+        cloud_transport: Transport = urllib_transport,
     ) -> None:
         self.cfg = config
         self.svc = config.service
@@ -133,6 +139,14 @@ class EdgeService:
         self._next_housekeeping = 0.0
         self.sessions = 0
         self.exported_events = 0
+        self.sync: CloudSync | None = None
+        if config.cloud.enabled:
+            if cloud_token:
+                self.sync = CloudSync(
+                    self.store, config.cloud, cloud_token, self.clock, cloud_transport
+                )
+            else:
+                log.error("cloud.enabled but VIGIL_DEVICE_TOKEN is not set; cloud sync disabled")
 
     # ---------------------------------------------------------------- loop
 
@@ -143,6 +157,12 @@ class EdgeService:
         if housekeeping_thread:
             hk = threading.Thread(target=self._housekeeping_loop, name="housekeeping", daemon=True)
             hk.start()
+        sync_thread: threading.Thread | None = None
+        if self.sync is not None and housekeeping_thread:
+            sync_thread = threading.Thread(
+                target=self.sync.run, args=(self.stop_event,), name="cloud-sync", daemon=True
+            )
+            sync_thread.start()
         backoff = self.svc.reconnect_min_seconds
         try:
             while not self.stop_event.is_set():
@@ -184,7 +204,16 @@ class EdgeService:
             self._notify("STOPPING=1")
             if hk is not None:
                 hk.join(timeout=5)
+            if self.sync is not None:
+                self.sync.wake.set()
+                if sync_thread is not None:
+                    sync_thread.join(timeout=5)
             self.housekeeping_tick(force=True)
+            if self.sync is not None:
+                try:
+                    self.sync.flush()  # best effort: final events + heartbeat
+                except Exception:
+                    log.exception("final cloud flush failed")
             self.store.close()
 
     def _wait(self, seconds: float) -> None:
@@ -263,6 +292,8 @@ class EdgeService:
             msg = incident_event_message(out, self.svc.device_id, started)
             if self.store.enqueue("incident_event", msg, self.clock.now_utc(), out.event_id):
                 self.exported_events += 1
+                if self.sync is not None:
+                    self.sync.wake.set()  # alerts go out now, not at the next poll
             log.warning(
                 "%s %s/%s peak=%.2f",
                 record["kind"],

@@ -35,7 +35,7 @@ for _ in $(seq 1 60); do
 done
 
 VIGIL_DISPATCH_SECRET=$(cat "$SECRET_FILE") npx deno test \
-  --config supabase/functions/deno.json --allow-net --allow-env --allow-read \
+  --config supabase/functions/deno.json --allow-net --allow-env --allow-read --allow-write --allow-run=uv \
   supabase/tests/e2e/
 
 # Privacy check: logs may contain masked numbers (+1555***0901), never full ones.

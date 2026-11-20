@@ -195,10 +195,14 @@ class LocalStore:
             )
         return cur.rowcount == 1
 
-    def pending(self, limit: int = 100) -> list[OutboxMessage]:
+    def pending(self, limit: int = 100, max_attempts: int | None = None) -> list[OutboxMessage]:
+        """Unsent messages, oldest first. ``max_attempts`` skips messages the server has
+        rejected that many times (they stay in the outbox and in ``queue_depth``)."""
+        cap = max_attempts if max_attempts is not None else 2**31
         with self._tx() as db:
             rows = db.execute(
-                "SELECT * FROM outbox WHERE sent_at IS NULL ORDER BY seq LIMIT ?", (limit,)
+                "SELECT * FROM outbox WHERE sent_at IS NULL AND attempts < ? ORDER BY seq LIMIT ?",
+                (cap, limit),
             ).fetchall()
         return [
             OutboxMessage(
