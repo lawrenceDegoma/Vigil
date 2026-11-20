@@ -48,3 +48,19 @@ Notes:
 - **Analysis cost depends on the scene.** The motion stage averaged 24.1 ms per frame, compared with 14.6 ms in run 1 on the same hardware and config. The owner confirmed that they moved the camera and walked in front of it at the start, which matches the first high-CPU stretch. Moving the camera itself is heavier than anything a fixed mount sees. Per-frame motion work (feature tracking, RANSAC, connected components) grows with how much changes. A real episode is the high-motion case, so the heavier figure is the one that matters for headroom. Even so, p95 used 71 % of the frame budget and nothing dropped.
 - **Heat.** The temperature rose steadily from 42.9 °C to 58.0 °C and had not levelled off. The soft-limit flag was set again since boot, which included an install. A heatsink is now recommended before the 24 h soak.
 - **Open owner decision.** Make the hard gate "≥ 14.5 fps, < 1 % drops, p95 below the 66.7 ms frame budget", and keep 40 ms / 60 % as soak warnings? Or keep the current targets and buy margin by lowering fps, resolution or flow, which would require re-validating detection?
+
+### Runs 4–5 (2026-11-20 UTC): owner's deployment framing with the analysis crop (ADR-017)
+
+The camera is in its final position. Config: `camera.analysis_size = [640, 360]`, `preprocess.crop = [0.14, 0.28, 0.66, 0.57]` (white floor, cot and carpet), `preprocess.width = 384`, giving a 384x187 analysis frame (71,808 px, against 57,600 at the default 320x180). The dog on the cot is about 98 px long, against about 54 px without the crop. Rules `motion-rules-0.1.0+f9171d04`. The Pi was in its case with heatsinks and no fan, and about 63 °C throughout both runs.
+
+| Measure | Run 4 (`-crop`) | Run 5 (`-crop-2`, bilinear for small downscales) | Gate (ADR-018) |
+|---|---|---|---|
+| Delivered fps / dropped | 14.97 / 0 | 14.97 / 0 | pass |
+| Preprocess stage | 7.5 ms | 1.9 ms | — |
+| Analysis ms/frame p95 (max) | 48.5 (65.9) | 29.5 (55.0) | pass; run 5 also under the 40 ms warning |
+| Process CPU mean | 86 % | 68 % | warning (> 60 %) |
+| Temperature / `throttled` | 63.9 °C max / `0x80008` | 64.5 °C max / `0x80008` | **warning**: soft limit (60 °C, 1.4→1.2 GHz) active during the runs |
+| Peak RSS | 167 MB | 167 MB | pass |
+| Test clip finish (off-thread) | 1.03 s | 1.26 s | pass |
+
+The gate passes with the Pi soft-throttled. Per ADR-018 the remaining warnings are CPU and temperature. Heatsinks are already fitted, so the next step before an unattended pilot is airflow: a small 5 V fan, or a better-ventilated position. Raising `temp_soft_limit` instead is not recommended (Raspberry Pi documents possible instability). Runs 4–5 had less motion in view than run 3, so p95 under heavy motion will be higher. Confirm in the soak.

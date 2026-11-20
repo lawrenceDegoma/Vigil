@@ -89,6 +89,7 @@ The scale-transfer experiment (DETECTION §5.3) shows real episode motion become
 2. **Analysis crop** `preprocess.crop` (new): crops the resting area *before* downscaling, so analysis cost is unchanged. On the Pi, raise `camera.analysis_size` (e.g. 640x360, scaled by the ISP at no CPU cost) so the crop has real resolution. Clips still record the full view.
 3. A larger `preprocess.width`, only if the Pi benchmark shows headroom.
 ROI polygons remain in full-frame coordinates.
+*Owner's deployment (2026-11-19):* the mount can't be moved closer without losing one of its vantage points. Measured from a full-resolution still, the dog on his cot spans 16.8 % of the frame width, so about **54 px** at the default 320 px, which is too small. His usual spots are the cot, a tiled floor area to the left, and the carpet towards the camera. All three fit in one wide box: `crop = [0.14, 0.28, 0.66, 0.57]`, with `analysis_size = [640, 360]` and `width = 384`. That gives a 384x187 analysis frame with the dog at about **98 px** on the cot. The tiled spot is probably further away; estimated 80–90 px there, not yet measured. The owner chose coverage of the carpet over the extra detail of 422 px, which would have exceeded the Pi 3 frame budget. **Detection only covers the box.** The bottom-left of the box includes a seat, so human motion there is in view (see ADR-013). Benchmarked on the Pi in docs/benchmarks (runs 4–5): passes ADR-018.
 
 ### ADR-018 — Phase 2 performance gate: hard criteria and warning thresholds
 **Status:** accepted by the owner (2026-11-16)
