@@ -127,7 +127,7 @@ A live view on phones stays out of scope (DESIGN §3, "unrestricted remote live 
 - **Real SMS.** The mock provider is the default. Twilio refuses to start without `SMS_LIVE_APPROVED=yes` (owner approval). Logs mask phone numbers.
 
 ### ADR-021 — A clear rhythm slower than 1.8 Hz is evidence against a convulsion
-**Status:** accepted (2026-11-21). Not yet deployed to the Pi; that needs a restart, at the owner's call.
+**Status:** accepted (2026-11-21); deployed to the Pi 2026-11-21 00:12 PST (rules `b0826d99`).
 **Context.** The first alert from the deployed camera was the owner doing push-ups in the analysis box (DETECTION §5.4). Compared with the one real episode, push-ups showed a dominant rhythm of about 1.5 Hz, against 3.25 Hz (IQR 2.5–3.75) for paddling. The owner reports that paddling stays fast for most of an episode and slows only near the end.
 **Decision.** `detectors.convulsion.slow_rhythm_hz = 1.8` with `slow_rhythm_min_periodicity = 0.3`: a window whose motion is **clearly** rhythmic (periodicity ≥ 0.3) with a dominant frequency below 1.8 Hz is suppressed (`slow_rhythm`). Windows without a clear rhythm (tonic or irregular phases) are unaffected, and the rhythm floor still allows them to score.
 **Evaluation (2026-11-21).** All labelled footage, at thresholds off / 1.8 / 2.0 / 2.2:
