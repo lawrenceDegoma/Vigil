@@ -213,3 +213,29 @@ export function validateHeartbeat(v: unknown): Result<HeartbeatV1> {
     return h as HeartbeatV1;
   });
 }
+
+export interface TestAlertV1 extends Json {
+  schema_version: "test-alert.v1";
+  request_id: string;
+  device_id: string;
+  requested_at: string;
+  scope: "all" | "admin";
+}
+
+const TEST_FIELDS = ["schema_version", "request_id", "device_id", "requested_at", "scope"] as const;
+
+export function validateTestAlert(v: unknown): Result<TestAlertV1> {
+  return wrap(() => {
+    const w = "test-alert.v1";
+    check(isObj(v), `${w}: not an object`);
+    const t = v as Json;
+    onlyKeys(t, TEST_FIELDS, w);
+    required(t, TEST_FIELDS, w);
+    check(t.schema_version === "test-alert.v1", `${w}: wrong schema_version`);
+    check(uuid(t.request_id), `${w}: request_id must be a uuid`);
+    check(str(t.device_id, 1, 64), `${w}: bad device_id`);
+    check(dateTime(t.requested_at), `${w}: bad requested_at`);
+    check(t.scope === "all" || t.scope === "admin", `${w}: scope must be all or admin`);
+    return t as TestAlertV1;
+  });
+}

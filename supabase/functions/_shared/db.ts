@@ -54,6 +54,13 @@ export class Db implements EngineDb, ClipDb {
     return row.r as IngestResult;
   }
 
+  async ingestTestAlert(deviceId: string, request: Json, now: Date): Promise<IngestResult> {
+    const [row] = await this.sql`
+      select private.ingest_test_alert(${deviceId}::uuid, ${this.sql.json(request as never)},
+                                       ${now}) as r`;
+    return row.r as IngestResult;
+  }
+
   async scheduleReminders(now: Date): Promise<number> {
     const [row] = await this.sql`select private.schedule_reminders(${now}) as n`;
     return Number(row.n);

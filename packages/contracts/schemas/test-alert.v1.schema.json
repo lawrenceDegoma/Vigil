@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vigil.local/contracts/test-alert.v1.schema.json",
+  "title": "TestAlert v1",
+  "description": "Device-to-cloud request to send a TEST text to the household (`vigil test-alert`). Creates no incident and no reminders. The server limits how many tests a household can send per hour.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "request_id", "device_id", "requested_at", "scope"],
+  "properties": {
+    "schema_version": { "const": "test-alert.v1" },
+    "request_id": {
+      "type": "string", "format": "uuid",
+      "description": "Idempotency key: a retried request never sends a second round of texts."
+    },
+    "device_id": { "type": "string", "minLength": 1, "maxLength": 64 },
+    "requested_at": { "type": "string", "format": "date-time" },
+    "scope": {
+      "enum": ["all", "admin"],
+      "description": "all = every household phone that receives alerts; admin = administrators only."
+    }
+  }
+}

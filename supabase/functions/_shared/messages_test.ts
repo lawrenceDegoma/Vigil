@@ -97,3 +97,17 @@ Deno.test("user-provided names are cleaned and bounded; no link without app URL"
 Deno.test("phones are masked for logs", () => {
   assertEquals(maskPhone("+15555550102"), "+1555***0102");
 });
+
+Deno.test("test alert wording: clearly a test, opt-out included, one SMS segment", () => {
+  const m = renderMessage({ ...base, kind: "test_alert", signalType: null, startedAt: null });
+  assertEquals(
+    m,
+    "Vigil TEST from Living room at 9:45 PM: this is only a test of your alerts. " +
+      "No action needed. Reply STOP to opt out.",
+  );
+  assertMatch(m, GSM_SAFE);
+  assert(m.length <= 160);
+  assert(!/seizure|vomit|urgent/i.test(m));
+  const noDevice = renderMessage({ ...base, kind: "test_alert", deviceName: null });
+  assert(noDevice.startsWith("Vigil TEST at 9:45 PM:"));
+});

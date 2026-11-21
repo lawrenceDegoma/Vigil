@@ -207,6 +207,14 @@ class LocalStore:
             row = db.execute("SELECT cloud_attempts FROM clips WHERE id = ?", (clip_id,)).fetchone()
         return int(row["cloud_attempts"]) if row else 0
 
+    def message_status(self, dedup_key: str) -> tuple[bool, int] | None:
+        """(sent, attempts) for a queued message, or None if unknown."""
+        with self._tx() as db:
+            row = db.execute(
+                "SELECT sent_at, attempts FROM outbox WHERE dedup_key = ?", (dedup_key,)
+            ).fetchone()
+        return (row["sent_at"] is not None, int(row["attempts"])) if row else None
+
     def pending_count(self, kind: str) -> int:
         with self._tx() as db:
             (n,) = db.execute(

@@ -90,6 +90,7 @@ journalctl -u vigil-edge -f                                   # live logs
 sudo -u vigil /opt/vigil/venv/bin/vigil health --data-dir /var/lib/vigil   # latest heartbeat
 sudo -u vigil /opt/vigil/venv/bin/vigil clips list --data-dir /var/lib/vigil
 sudo -u vigil /opt/vigil/venv/bin/vigil maintenance on --data-dir /var/lib/vigil   # pause alerts/clips
+sudo -u vigil /opt/vigil/venv/bin/vigil test-alert -c /etc/vigil/vigil.toml --data-dir /var/lib/vigil   # TEST text to every phone (--to admin: just admins); max 3/hour
 ```
 Behavior:
 - starts on boot, without waiting for the network;

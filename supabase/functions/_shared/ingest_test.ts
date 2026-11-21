@@ -21,6 +21,10 @@ class RecordingDb implements IngestDb {
     this.calls.push("heartbeat");
     return Promise.resolve({ status: "accepted", notifications: 0 });
   }
+  ingestTestAlert(): Promise<IngestResult> {
+    this.calls.push("test");
+    return Promise.resolve({ status: "accepted", notifications: 2 });
+  }
 }
 
 Deno.test("valid messages are applied; invalid ones are rejected without touching the db", async () => {
@@ -51,4 +55,24 @@ Deno.test("batch shape is enforced", async () => {
     await assertRejects(() => ingestBatch(db, device, body, new Date()), BadRequest);
   }
   assertEquals(db.calls, []);
+});
+
+Deno.test("test alerts are validated and routed", async () => {
+  const db = new RecordingDb();
+  const ok = {
+    schema_version: "test-alert.v1",
+    request_id: "d0000000-0000-0000-0000-000000000001",
+    device_id: "pi-livingroom",
+    requested_at: "2026-11-21T12:00:00Z",
+    scope: "all",
+  };
+  const report = await ingestBatch(db, device, {
+    messages: [
+      { kind: "test_alert", payload: ok },
+      { kind: "test_alert", payload: { ...ok, scope: "everyone" } },
+    ],
+  }, new Date());
+  assertEquals(db.calls, ["test"]);
+  assertEquals(report.notificationsQueued, 2);
+  assertEquals(report.results.map((r) => r.status), ["accepted", "rejected"]);
 });

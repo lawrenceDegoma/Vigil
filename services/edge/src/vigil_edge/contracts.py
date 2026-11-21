@@ -47,3 +47,25 @@ def incident_event_message(
         "rule_version": inc.rule_version,
         "features": features,
     }
+
+
+TEST_ALERT_SCHEMA = "test-alert.v1"
+
+
+def build_test_alert(
+    device_id: str, scope: str, request_id: str, requested_at: datetime
+) -> dict[str, Any]:
+    """Ask the backend to send a TEST text (no incident, no reminders)."""
+    if scope not in ("all", "admin"):
+        raise ValueError("scope must be 'all' or 'admin'")
+    if requested_at.tzinfo is None:
+        raise ValueError("requested_at must be timezone-aware")
+    return {
+        "schema_version": TEST_ALERT_SCHEMA,
+        "request_id": request_id,
+        "device_id": device_id,
+        "requested_at": requested_at.astimezone(UTC)
+        .isoformat(timespec="milliseconds")
+        .replace("+00:00", "Z"),
+        "scope": scope,
+    }

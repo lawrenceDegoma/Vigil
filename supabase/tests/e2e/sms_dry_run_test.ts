@@ -244,6 +244,42 @@ Deno.test({
         },
       );
 
+      await t.step(
+        "test alert: TEST text to every phone, no incident, capped at 3 per hour",
+        async () => {
+          const incidentsBefore = await sql`select count(*)::int as n from public.incidents
+          where household_id = ${H}`;
+          const request = (n: number) => ({
+            kind: "test_alert",
+            payload: {
+              schema_version: "test-alert.v1",
+              request_id: crypto.randomUUID(),
+              device_id: deviceKey,
+              requested_at: new Date().toISOString(),
+              scope: n === 0 ? "all" : "admin",
+            },
+          });
+          const first = await (await ingest([request(0)])).json();
+          assertEquals(first.results[0].status, "accepted");
+          const texts = await sent("test_alert");
+          assertEquals(texts.map((x) => x.to_e164), [phones.admin, phones.fam1, phones.fam2]);
+          for (const x of texts) {
+            assertEquals(x.status, "sent");
+            assertMatch(
+              x.body,
+              /^Vigil TEST from Living room at .*only a test.*Reply STOP to opt out\.$/,
+            );
+          }
+          await ingest([request(1)]);
+          await ingest([request(2)]);
+          await ingest([request(3)]); // fourth within the hour: ignored
+          assertEquals((await sent("test_alert")).length, 3 + 1 + 1);
+          const incidentsAfter = await sql`select count(*)::int as n from public.incidents
+          where household_id = ${H}`;
+          assertEquals(incidentsAfter[0].n, incidentsBefore[0].n);
+        },
+      );
+
       await t.step("no full phone numbers in function logs (checked by the script)", () => {});
     } finally {
       await teardown();

@@ -11,7 +11,8 @@ export type NotificationKind =
   | "incident_alert"
   | "incident_reminder"
   | "device_offline"
-  | "device_recovered";
+  | "device_recovered"
+  | "test_alert";
 
 export interface MessageContext {
   kind: NotificationKind;
@@ -106,6 +107,14 @@ export function renderMessage(ctx: MessageContext): string {
         : "";
       return plain(
         `Vigil: ${device} is OFFLINE.${since} Monitoring and alerts may not be working.`,
+      );
+    }
+    case "test_alert": {
+      const at = localTime(ctx.now, ctx.now, ctx.timezone);
+      const from = ctx.deviceName ? ` from ${device}` : "";
+      return plain(
+        `Vigil TEST${from} at ${at}: this is only a test of your alerts. No action needed. ` +
+          "Reply STOP to opt out.",
       );
     }
     case "device_recovered": {

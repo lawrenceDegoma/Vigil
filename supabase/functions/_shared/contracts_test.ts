@@ -1,7 +1,7 @@
 import { assertEquals } from "jsr:@std/assert@1.0.13";
 import Ajv2020 from "npm:ajv@8.20.0/dist/2020.js";
 import addFormats from "npm:ajv-formats@3.0.1";
-import { validateHeartbeat, validateIncidentEvent } from "./contracts.ts";
+import { validateHeartbeat, validateIncidentEvent, validateTestAlert } from "./contracts.ts";
 
 const root = new URL("../../../packages/contracts/", import.meta.url);
 const read = async (p: string) => JSON.parse(await Deno.readTextFile(new URL(p, root)));
@@ -86,3 +86,19 @@ Deno.test("edge examples are valid", () => {
   assertEquals(validateIncidentEvent(ended).ok, true);
   assertEquals(validateHeartbeat(heartbeat).ok, true);
 });
+
+const schemaTest = ajv.compile(await read("schemas/test-alert.v1.schema.json"));
+const testAlert = await read("examples/test_alert.json");
+const testCases: [string, unknown][] = [
+  ["edge example", testAlert],
+  ["bad scope", mutate(testAlert, { scope: "everyone" })],
+  ["missing request_id", mutate(testAlert, { request_id: undefined })],
+  ["bad request_id", mutate(testAlert, { request_id: "x" })],
+  ["extra field", mutate(testAlert, { message: "custom text" })],
+  ["bad time", mutate(testAlert, { requested_at: "now" })],
+];
+for (const [name, payload] of testCases) {
+  Deno.test(`test-alert agrees with JSON Schema: ${name}`, () => {
+    assertEquals(validateTestAlert(payload).ok, schemaTest(payload) as boolean);
+  });
+}

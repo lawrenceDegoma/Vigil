@@ -13,6 +13,7 @@ Examples::
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
 import logging
 import os
@@ -560,6 +561,62 @@ def cmd_maintenance(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_test_alert(args: argparse.Namespace) -> int:
+    """Queue a TEST text for the running service to deliver (uses its device token)."""
+    import time
+    import uuid
+
+    from vigil_edge.contracts import build_test_alert
+    from vigil_edge.service import ServicePaths
+    from vigil_edge.store import LocalStore
+
+    cfg = service_config(args)
+    if not cfg.cloud.enabled:
+        print(
+            "cloud sync is not enabled in this config; nothing would be sent "
+            "(on the Pi pass -c /etc/vigil/vigil.toml)"
+        )
+        return 1
+    paths = ServicePaths(Path(cfg.service.data_dir))
+    if not paths.db.exists():
+        print(f"no Vigil data at {paths.data_dir}; is the service set up? (--data-dir)")
+        return 1
+    # The device id must match the one the service authenticates as. `sudo -u vigil`
+    # does not load /etc/vigil/vigil.env, so prefer the running service's heartbeat.
+    device_id = getattr(args, "device_id", None)
+    if not device_id and paths.heartbeat_file.exists():
+        with contextlib.suppress(ValueError, KeyError, OSError):
+            device_id = json.loads(paths.heartbeat_file.read_text())["device_id"]
+    device_id = device_id or cfg.service.device_id
+    request_id = str(uuid.uuid4())
+    store = LocalStore(paths.db)
+    try:
+        msg = build_test_alert(device_id, args.to, request_id, datetime.now(UTC))
+        store.enqueue("test_alert", msg, datetime.now(UTC), f"test_alert:{request_id}")
+        who = "every household phone" if args.to == "all" else "administrators"
+        print(f"test alert queued for {who}; waiting for the running service to deliver it...")
+        deadline = time.monotonic() + args.wait
+        while time.monotonic() < deadline:
+            status = store.message_status(f"test_alert:{request_id}")
+            if status and status[0]:
+                print(
+                    "delivered to the cloud. Texts go out within seconds "
+                    "(at most 3 test alerts per hour; extra ones are ignored)."
+                )
+                return 0
+            if status and status[1] > 0:
+                print("the cloud rejected the request; see `journalctl -u vigil-edge`")
+                return 1
+            time.sleep(1)
+    finally:
+        store.close()
+    print(
+        f"not delivered within {args.wait:.0f}s. It stays queued and goes out once the "
+        "service is running and online (check `systemctl status vigil-edge`)."
+    )
+    return 2
+
+
 def cmd_clips(args: argparse.Namespace) -> int:
     from vigil_edge.service import ServicePaths
     from vigil_edge.store import LocalStore
@@ -695,6 +752,15 @@ def build_parser() -> argparse.ArgumentParser:
     cl.add_argument("action", choices=["list", "preserve", "unpreserve"])
     cl.add_argument("clip_id", nargs="?")
     cl.set_defaults(func=cmd_clips)
+
+    ta = sub.add_parser("test-alert", help="send a TEST text to the household (no incident)")
+    service_args(ta)
+    ta.add_argument(
+        "--to", choices=["all", "admin"], default="all", help="all phones (default) or admins"
+    )
+    ta.add_argument("--wait", type=float, default=30.0, help="seconds to wait for delivery")
+    ta.add_argument("--device-id", help="override (default: the running service's device id)")
+    ta.set_defaults(func=cmd_test_alert)
 
     h = sub.add_parser("health", help="show the latest local heartbeat")
     service_args(h)
