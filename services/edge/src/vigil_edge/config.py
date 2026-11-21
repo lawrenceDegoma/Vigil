@@ -306,6 +306,8 @@ class CloudConfig:
     timeout_seconds: float = 10.0
     max_backoff_seconds: float = 300.0
     max_rejections: int = 5  # a message the server rejects this often is parked, not retried
+    upload_clips: bool = True  # clips of ALERTED incidents only (ADR-010); False = local only
+    max_upload_mb: float = 45.0  # larger clips are split into playable parts (Free plan: 50 MB)
 
     def __post_init__(self) -> None:
         if self.enabled:
@@ -320,6 +322,8 @@ class CloudConfig:
             raise ConfigError("cloud.max_backoff_seconds must be >= interval_seconds")
         if self.max_rejections < 1:
             raise ConfigError("cloud.max_rejections must be >= 1")
+        if not (1 <= self.max_upload_mb <= 50):
+            raise ConfigError("cloud.max_upload_mb must be within [1, 50]")
 
 
 @dataclass(frozen=True)

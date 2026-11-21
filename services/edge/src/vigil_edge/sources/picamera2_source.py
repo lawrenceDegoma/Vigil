@@ -103,6 +103,8 @@ class Picamera2CircularBackend:
                 str(h264),
                 "-c",
                 "copy",
+                "-movflags",
+                "+faststart",  # index first: phones can start playing before the download ends
                 str(mp4),
             ],
             capture_output=True,

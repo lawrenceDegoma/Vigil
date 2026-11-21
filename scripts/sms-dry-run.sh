@@ -12,7 +12,10 @@ npx supabase status >/dev/null 2>&1 || npx supabase start
 
 # Throwaway secret for this run; the env file is gitignored.
 openssl rand -hex 24 > "$SECRET_FILE"
+# Local stack keys (well-known local development values, not secrets).
+eval "$(npx supabase status -o env 2>/dev/null | grep -E '^(ANON_KEY|SERVICE_ROLE_KEY|API_URL)=')"
 {
+  echo "VIGIL_PUBLIC_SUPABASE_URL=${API_URL}"
   echo "SMS_PROVIDER=mock"
   echo "VIGIL_DISPATCH_SECRET=$(cat "$SECRET_FILE")"
   echo "VIGIL_APP_URL=http://localhost:5173"
@@ -28,14 +31,19 @@ cleanup() {
 trap cleanup EXIT
 
 echo "waiting for edge functions..."
-for _ in $(seq 1 60); do
-  code=$(curl -s -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:54321/functions/v1/dispatch || true)
-  if [ "$code" = "401" ]; then break; fi
-  sleep 1
+# Every function boots lazily; wait until each answers (401 = up and refusing us).
+for fn in dispatch device-ingest clip-upload clip-url; do
+  for _ in $(seq 1 60); do
+    code=$(curl -s -o /dev/null -w '%{http_code}' -X POST "http://127.0.0.1:54321/functions/v1/$fn" || true)
+    if [ "$code" = "401" ]; then break; fi
+    sleep 1
+  done
 done
 
-VIGIL_DISPATCH_SECRET=$(cat "$SECRET_FILE") npx deno test \
-  --config supabase/functions/deno.json --allow-net --allow-env --allow-read --allow-write --allow-run=uv \
+VIGIL_DISPATCH_SECRET=$(cat "$SECRET_FILE") E2E_API_URL="$API_URL" E2E_ANON_KEY="$ANON_KEY" \
+  E2E_SERVICE_KEY="$SERVICE_ROLE_KEY" npx deno test \
+  --config supabase/functions/deno.json --allow-net --allow-env --allow-read --allow-write \
+  --allow-run=uv,ffmpeg \
   supabase/tests/e2e/
 
 # Privacy check: logs may contain masked numbers (+1555***0901), never full ones.

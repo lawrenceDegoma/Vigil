@@ -34,6 +34,7 @@ from datetime import datetime
 from pathlib import Path
 
 from vigil_edge import systemd
+from vigil_edge.clip_upload import ClipUploader, Putter, urllib_put
 from vigil_edge.clock import Clock, SystemClock
 from vigil_edge.config import VigilConfig
 from vigil_edge.contracts import incident_event_message
@@ -109,6 +110,7 @@ class EdgeService:
         notify: Callable[[str], bool] = systemd.notify,
         cloud_token: str | None = None,
         cloud_transport: Transport = urllib_transport,
+        cloud_put: Putter = urllib_put,
     ) -> None:
         self.cfg = config
         self.svc = config.service
@@ -140,11 +142,22 @@ class EdgeService:
         self.sessions = 0
         self.exported_events = 0
         self.sync: CloudSync | None = None
+        self.uploader: ClipUploader | None = None
+        self._uploader_wake = threading.Event()
         if config.cloud.enabled:
             if cloud_token:
                 self.sync = CloudSync(
                     self.store, config.cloud, cloud_token, self.clock, cloud_transport
                 )
+                if config.cloud.upload_clips and config.recording.enabled:
+                    self.uploader = ClipUploader(
+                        self.store,
+                        config.cloud,
+                        cloud_token,
+                        self.clock,
+                        cloud_transport,
+                        cloud_put,
+                    )
             else:
                 log.error("cloud.enabled but VIGIL_DEVICE_TOKEN is not set; cloud sync disabled")
 
@@ -163,6 +176,15 @@ class EdgeService:
                 target=self.sync.run, args=(self.stop_event,), name="cloud-sync", daemon=True
             )
             sync_thread.start()
+        upload_thread: threading.Thread | None = None
+        if self.uploader is not None and housekeeping_thread:
+            upload_thread = threading.Thread(
+                target=self.uploader.run,
+                args=(self.stop_event, self._uploader_wake),
+                name="clip-upload",
+                daemon=True,
+            )
+            upload_thread.start()
         backoff = self.svc.reconnect_min_seconds
         try:
             while not self.stop_event.is_set():
@@ -208,6 +230,9 @@ class EdgeService:
                 self.sync.wake.set()
                 if sync_thread is not None:
                     sync_thread.join(timeout=5)
+            if upload_thread is not None:
+                self._uploader_wake.set()
+                upload_thread.join(timeout=5)  # an unfinished upload resumes next start
             self.housekeeping_tick(force=True)
             if self.sync is not None:
                 try:

@@ -219,7 +219,7 @@ web3 = 30
 
 [auth.email]
 # Allow/disallow new user signups via email to your project.
-enable_signup = false  # Vigil: invite-only households
+enable_signup = true  # keeps the email provider (logins) on; [auth] enable_signup = false blocks self sign-up
 # If enabled, a user will be required to confirm any email change on both the old, and new email
 # addresses. If disabled, only the new email is required to confirm.
 double_confirm_changes = true
@@ -421,3 +421,10 @@ verify_jwt = false
 
 [functions.dispatch]
 verify_jwt = false
+
+[functions.clip-upload]
+verify_jwt = false
+
+# clip-url keeps the gateway JWT check (signed-in users only) and re-checks membership.
+[functions.clip-url]
+verify_jwt = true

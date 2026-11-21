@@ -102,6 +102,10 @@ class LocalStore:
             db.execute("PRAGMA journal_mode=WAL")
             db.execute("PRAGMA synchronous=NORMAL")
             db.executescript(_SCHEMA)
+            cols = {r["name"] for r in db.execute("PRAGMA table_info(clips)").fetchall()}
+            if "cloud_state" not in cols:  # added in Phase 3; migrates existing devices
+                db.execute("ALTER TABLE clips ADD COLUMN cloud_state TEXT")
+                db.execute("ALTER TABLE clips ADD COLUMN cloud_attempts INTEGER NOT NULL DEFAULT 0")
             db.execute(
                 "INSERT OR IGNORE INTO meta(key, value) VALUES ('schema_version', ?)",
                 (str(SCHEMA_VERSION),),
@@ -175,6 +179,40 @@ class LocalStore:
     def delete_clip(self, clip_id: str) -> None:
         with self._tx() as db:
             db.execute("DELETE FROM clips WHERE id = ?", (clip_id,))
+
+    # Cloud upload state (ADR-010): NULL = not yet handled, "uploaded", or "skipped:<why>".
+    def clips_to_upload(self, limit: int = 1) -> list[ClipRecord]:
+        with self._tx() as db:
+            rows = db.execute(
+                "SELECT * FROM clips WHERE kind = 'incident' AND cloud_state IS NULL "
+                "ORDER BY created_at LIMIT ?",
+                (limit,),
+            ).fetchall()
+        return [self._clip(r) for r in rows]
+
+    def set_cloud_state(self, clip_id: str, state: str) -> None:
+        with self._tx() as db:
+            db.execute("UPDATE clips SET cloud_state = ? WHERE id = ?", (state, clip_id))
+
+    def cloud_state(self, clip_id: str) -> str | None:
+        with self._tx() as db:
+            row = db.execute("SELECT cloud_state FROM clips WHERE id = ?", (clip_id,)).fetchone()
+        return row["cloud_state"] if row else None
+
+    def bump_cloud_attempts(self, clip_id: str) -> int:
+        with self._tx() as db:
+            db.execute(
+                "UPDATE clips SET cloud_attempts = cloud_attempts + 1 WHERE id = ?", (clip_id,)
+            )
+            row = db.execute("SELECT cloud_attempts FROM clips WHERE id = ?", (clip_id,)).fetchone()
+        return int(row["cloud_attempts"]) if row else 0
+
+    def pending_count(self, kind: str) -> int:
+        with self._tx() as db:
+            (n,) = db.execute(
+                "SELECT COUNT(*) FROM outbox WHERE sent_at IS NULL AND kind = ?", (kind,)
+            ).fetchone()
+        return int(n)
 
     def clips_bytes(self) -> int:
         with self._tx() as db:

@@ -7,10 +7,13 @@ import { Db } from "../_shared/db.ts";
 import { dispatch } from "../_shared/dispatcher.ts";
 import { json } from "../_shared/http.ts";
 import { providerFromEnv } from "../_shared/sms.ts";
+import { purgeExpiredClips } from "../_shared/clips.ts";
+import { SupabaseStorage } from "../_shared/storage.ts";
 
 const db = Db.fromEnv();
 const provider = providerFromEnv((k) => Deno.env.get(k));
 const secret = Deno.env.get("VIGIL_DISPATCH_SECRET") ?? "";
+const storage = SupabaseStorage.fromEnv();
 
 Deno.serve(async (req) => {
   if (req.method !== "POST") return json(405, { error: "method not allowed" });
@@ -22,7 +25,13 @@ Deno.serve(async (req) => {
       appUrl: Deno.env.get("VIGIL_APP_URL"),
     });
     const pruned = await db.pruneHealth(new Date());
-    return json(200, { ...report, pruned });
+    let clipsExpired = 0;
+    try {
+      clipsExpired = await purgeExpiredClips(db, storage, new Date());
+    } catch (e) {
+      console.error(`clip retention failed: ${(e as Error).message}`);
+    }
+    return json(200, { ...report, pruned, clipsExpired });
   } catch (e) {
     console.error(`dispatch failed: ${(e as Error).message}`);
     return json(500, { error: "internal error" });

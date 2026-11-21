@@ -4,6 +4,7 @@
 
 import postgres from "npm:postgres@3.4.9";
 import type { ClaimedNotification, Completion, EngineDb } from "./dispatcher.ts";
+import type { ClipAccessRow, ClipDb, ClipRegistration, RegisterResult } from "./clips.ts";
 import type { Json } from "./contracts.ts";
 
 export interface Device {
@@ -19,7 +20,7 @@ export type IngestResult = {
   [k: string]: unknown;
 };
 
-export class Db implements EngineDb {
+export class Db implements EngineDb, ClipDb {
   readonly sql: postgres.Sql;
 
   constructor(url: string) {
@@ -93,5 +94,62 @@ export class Db implements EngineDb {
     await this.sql`
       select private.complete_notification(${id}, ${c.ok}, ${c.provider}, ${c.providerMessageId},
                                             ${c.body}, ${c.error}, ${c.retryAt}, ${now})`;
+  }
+
+  // ------------------------------------------------------------------ clips
+
+  async registerClip(deviceId: string, clip: ClipRegistration, now: Date): Promise<RegisterResult> {
+    const [row] = await this.sql`
+      select private.register_clip(${deviceId}::uuid, ${
+      this.sql.json(clip as never)
+    }, ${now}) as r`;
+    return row.r as RegisterResult;
+  }
+
+  async completeClipPart(deviceId: string, clipId: string, index: number, now: Date) {
+    const [row] = await this.sql`
+      select private.complete_clip_part(${deviceId}::uuid, ${clipId}::uuid, ${index}::smallint,
+                                        ${now}) as r`;
+    return row.r as { status: string; complete?: boolean; reason?: string };
+  }
+
+  async clipPartPath(deviceId: string, clipId: string, index: number) {
+    const rows = await this.sql<{ storage_path: string; bytes: number }[]>`
+      select storage_path, bytes from private.clip_part_path(${deviceId}::uuid, ${clipId}::uuid,
+                                                             ${index}::smallint)`;
+    return rows[0] ? { storage_path: rows[0].storage_path, bytes: Number(rows[0].bytes) } : null;
+  }
+
+  async clipAccess(userId: string, clipId: string): Promise<ClipAccessRow[]> {
+    const rows = await this.sql`
+      select household_id, role, part_index, storage_path
+        from private.clip_access(${userId}::uuid, ${clipId}::uuid)`;
+    return rows.map((r) => ({
+      household_id: r.household_id,
+      role: r.role,
+      part_index: Number(r.part_index),
+      storage_path: r.storage_path,
+    }));
+  }
+
+  async audit(
+    household: string,
+    actor: string,
+    action: string,
+    type: string,
+    target: string,
+    meta: Record<string, unknown> = {},
+  ): Promise<void> {
+    await this.sql`select private.audit(${household}::uuid, ${actor}::uuid, ${action}, ${type},
+                                        ${target}, ${this.sql.json(meta as never)})`;
+  }
+
+  async expiredClips(now: Date, limit: number) {
+    return await this.sql<{ clip_id: string; storage_path: string }[]>`
+      select clip_id, storage_path from private.expired_clips(${now}, ${limit})`;
+  }
+
+  async forgetClip(clipId: string): Promise<void> {
+    await this.sql`select private.forget_clip(${clipId}::uuid)`;
   }
 }

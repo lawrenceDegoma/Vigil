@@ -43,6 +43,18 @@ A signal must persist for `onset_seconds` (with short gaps tolerated) before an 
 ### ADR-010 — Remote clip delivery
 **Status:** accepted by the owner (2026-11-20): option **(b)**, event-only clip upload
 Decision: the Pi uploads clips **only for alerted incidents** to a **private** Supabase Storage bucket. It uploads through a short-lived signed upload URL issued per clip by a device-authenticated function. Family members view clips only after login, through short-lived signed URLs issued by a server-side function that checks household membership. Shadow-mode clips, non-alerted clips and normal footage never leave the Pi. Encryption is TLS in transit plus the provider's at-rest storage encryption. It is **not end-to-end**: the provider could technically access uploaded clips. This is stated to the owner and in the dashboard. Cloud copies follow the same retention as the household setting; admin-preserved clips are exempt. Uploading can be turned off per device (`upload_clips = false`), which falls back to local-only clips.
+*Implementation (2026-11-20):*
+- Bucket and access:
+  - The `incident-clips` bucket is private and has **no storage policies** for users, so nobody can list or read objects directly, not even admins.
+  - `clip-url` returns 5-minute signed links, which are audited. Only admins get download links (`Content-Disposition: attachment`).
+- Upload flow:
+  - The device registers a clip, then PUTs each part to a signed upload URL, then calls `complete`. The server checks each part's size in storage before accepting it.
+  - A clip becomes viewable only when every part has arrived. Cloud expiry runs from upload time, and preserved clips are exempt.
+- Parts and playback:
+  - Clips over `cloud.max_upload_mb` (default 45; the Free plan allows 50 MB per file) are cut into playable MP4 parts with ffmpeg stream copy (no re-encode).
+  - Parts that are still too large are cut again.
+  - The Pi remux adds `+faststart` so phones can start playing before the download finishes.
+- Upload timing: uploads run in their own thread and wait until incident events are delivered, so they never delay alerts.
 Original options: (a) secure outbound tunnel (e.g. Tailscale or Cloudflare Tunnel) with an authenticated clip gateway on the Pi; (b) encrypted, event-only upload of incident clips to private Supabase Storage with short-lived signed URLs. (b) is simpler for family members and survives the Pi going offline, at the cost of incident clips leaving the house. (a) keeps footage local but fails when the Pi is unreachable. A recommendation will be made with cost estimates at the start of Phase 3.
 
 ### ADR-011 — Phase 1 thresholds were calibrated on synthetic footage

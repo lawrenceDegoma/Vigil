@@ -117,3 +117,5 @@ interval_seconds = 5.0     # incident events are sent immediately; this paces he
 timeout_seconds = 10.0
 max_backoff_seconds = 300.0
 max_rejections = 5         # messages the server keeps rejecting are parked (still counted in queue_depth)
+upload_clips = true        # upload clips of ALERTED incidents only (ADR-010); false = keep local
+max_upload_mb = 45.0       # larger clips are split into playable parts (stream copy, no re-encode)
