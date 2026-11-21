@@ -64,3 +64,29 @@ The camera is in its final position. Config: `camera.analysis_size = [640, 360]`
 | Test clip finish (off-thread) | 1.03 s | 1.26 s | pass |
 
 The gate passes with the Pi soft-throttled. Per ADR-018 the remaining warnings are CPU and temperature. Heatsinks are already fitted, so the next step before an unattended pilot is airflow: a small 5 V fan, or a better-ventilated position. Raising `temp_soft_limit` instead is not recommended (Raspberry Pi documents possible instability). Runs 4–5 had less motion in view than run 3, so p95 under heavy motion will be higher. Confirm in the soak.
+
+## Soak 1 (2026-11-19 23:53 to 2026-11-20 23:14 PST): 23 h 21 min, ended early by owner decision
+
+Deployed config (crop, 640x360 lores, 384 px; rules `f9171d04`), camera in its final position, heatsinks and no fan, no cloud connection. Source: 1,399 queued heartbeats plus the service journal. The owner ended the run 39 minutes short of 24 h to connect the cloud, so this does **not** satisfy "≥ 24 h before an unattended pilot"; the next continuous run counts for that.
+
+| Hour (PST) | fps min | temp avg / max °C | CPU avg % | mem used % | dropped |
+|---|---|---|---|---|---|
+| 00h | 14.97 | 62.2 / 63.4 | 67 | 28.3 | 0 |
+| 02–05h | 14.98 | 60.0–60.3 / 61.2 | 51–52 | 28.6–28.9 | 0 |
+| 07h | 14.95 | 62.4 / 64.5 | 69 | 28.7 | 0 |
+| 12h | 14.98 | 62.4 / 62.8 | 64 | 28.7 | 0 |
+| 18h | 14.95 | 64.2 / **66.6** | **70** | 29.6 | 0 |
+| 22h | 14.97 | 64.3 / 65.5 | 68 | 30.0 | 0 |
+
+- **Hard gate (ADR-018) held all day:** fps never below 14.94 in any hour; **0 dropped frames**; 0 restarts, 0 errors, 0 camera or session faults; process RSS 174 MB at the end.
+- **Warnings:**
+  - **Temperature:** at or above 60 °C almost the whole day, so the 3 B+ ran soft-throttled at 1.2 GHz most of the time (peak 66.6 °C in the evening).
+  - **CPU:** above 60 % during the day and evening.
+
+  A fan or better airflow is needed before a pilot.
+- **Memory:** system memory used rose from 28.1 % to 30.1 % (about +18 MB), mostly in the evening. Not conclusive; watch for growth over a longer run.
+- **Detections:**
+  - **Convulsion:** 0 incidents, so 0 false urgent alerts in a day of ordinary household life. One day is not a false-alert rate.
+  - **Vomiting (shadow mode):** 79 detections and 50 shadow clips (about 415 MB, roughly 8 MB each). That is disk churn on the SD card; the detector stays in shadow, and its clips should be reviewed or disabled (owner decision).
+- **Disk:** clips 415 MB (shadow only), database 1 MB, root filesystem 10 % used.
+- **Not yet done:** PI_SETUP §6 fault checklist (reboot, power loss, no camera, kill, low disk, maintenance).
