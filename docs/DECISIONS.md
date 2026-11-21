@@ -125,3 +125,26 @@ A live view on phones stays out of scope (DESIGN §3, "unrestricted remote live 
 - **Rate cap.** An hourly per-household cap protects against message storms, but never applies to first urgent alerts.
 - **Delivery to phones.** At-least-once with leases: a crash between sending and recording can produce a duplicate text, which is preferred over a missed alert.
 - **Real SMS.** The mock provider is the default. Twilio refuses to start without `SMS_LIVE_APPROVED=yes` (owner approval). Logs mask phone numbers.
+
+### ADR-021 — A clear rhythm slower than 1.8 Hz is evidence against a convulsion
+**Status:** accepted (2026-11-21). Not yet deployed to the Pi; that needs a restart, at the owner's call.
+**Context.** The first alert from the deployed camera was the owner doing push-ups in the analysis box (DETECTION §5.4). Compared with the one real episode, push-ups showed a dominant rhythm of about 1.5 Hz, against 3.25 Hz (IQR 2.5–3.75) for paddling. The owner reports that paddling stays fast for most of an episode and slows only near the end.
+**Decision.** `detectors.convulsion.slow_rhythm_hz = 1.8` with `slow_rhythm_min_periodicity = 0.3`: a window whose motion is **clearly** rhythmic (periodicity ≥ 0.3) with a dominant frequency below 1.8 Hz is suppressed (`slow_rhythm`). Windows without a clear rhythm (tonic or irregular phases) are unaffected, and the rhythm floor still allows them to score.
+**Evaluation (2026-11-21).** All labelled footage, at thresholds off / 1.8 / 2.0 / 2.2:
+
+| Set | Off | 1.8 | 2.0 | 2.2 |
+|---|---|---|---|---|
+| Real seizure (handheld config) | detected, 10.5 s | detected, 10.5 s | detected, 10.5 s | detected, 10.5 s |
+| Push-ups (deployed crop config) | **1 false alert** | 0 | 0 | 0 |
+| Behaviour clips IMG_2246/4871/5362 | 0 FA | 0 | 0 | 0 |
+| Fixed-vantage IMG_3052/3053 | 0 FA | 0 | 0 | 0 |
+| Synthetic set (12 clips) | 5/5, 0 FA | 5/5, 0 FA | 5/5, 0 FA | **4/5** (missed `mixed`: 2.2 Hz ± 0.4 wander) |
+
+At 1.8 and 2.0, none of the real seizure's 119 episode windows were suppressed. The incident now ends at 1:13 instead of 2:39 (the labelled episode ends at 1:08), because the slow post-episode handling no longer keeps it open. 1.8 was chosen over 2.0 for margin against slower episodes.
+**Limits.**
+- The evidence is one real seizure and one false alert.
+- A genuinely slow (< 1.8 Hz), clearly periodic clonic episode would be suppressed.
+- Faster exercise (≥ about 1.8 Hz) would still alert.
+- The other route remains human presence (ADR-013).
+
+The rules version changes: default `d1574146`, owner's deployed crop config `b0826d99`.

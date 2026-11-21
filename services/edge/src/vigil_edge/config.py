@@ -135,6 +135,10 @@ class ConvulsionConfig:
     max_camera_motion: float = 0.05  # frame-widths/s; a fixed camera should not move
     max_lighting_change: float = 0.06  # per-frame brightness jump
     max_region_area: float = 0.6  # motion over most of the frame = scene-wide change
+    # A clearly rhythmic motion slower than this (Hz) is evidence AGAINST a convulsion
+    # (e.g. a person exercising). 0 disables. See DETECTION §5.4 and ADR-021.
+    slow_rhythm_hz: float = 1.8  # ADR-021
+    slow_rhythm_min_periodicity: float = 0.3  # only when the rhythm is this clear
 
     def __post_init__(self) -> None:
         _validate_detector("convulsion", self.threshold, self.onset_seconds, self.min_active_ratio)
@@ -142,6 +146,10 @@ class ConvulsionConfig:
             _check_range(f"detectors.convulsion.{name}", getattr(self, name))
         if not (0.0 <= self.rhythm_floor <= 1.0):
             raise ConfigError("detectors.convulsion.rhythm_floor must be within [0, 1]")
+        if not (0.0 <= self.slow_rhythm_hz <= 3.0):
+            raise ConfigError("detectors.convulsion.slow_rhythm_hz must be within [0, 3]")
+        if not (0.0 < self.slow_rhythm_min_periodicity <= 1.0):
+            raise ConfigError("detectors.convulsion.slow_rhythm_min_periodicity must be in (0, 1]")
 
 
 @dataclass(frozen=True)

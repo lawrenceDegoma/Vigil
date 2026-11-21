@@ -68,3 +68,17 @@ def test_build_detectors_defaults() -> None:
     dets = {d.name: d for d in build_detectors(VigilConfig())}
     assert dets["convulsion"].mode is DetectorMode.ALERT
     assert dets["vomiting"].mode is DetectorMode.SHADOW
+
+
+def test_clear_slow_rhythm_is_evidence_against_convulsion() -> None:
+    """A person exercising (~1.5 Hz, very regular) must not look like paddling (~3 Hz)."""
+    det = ConvulsionDetector(ConvulsionConfig())
+    base = replace(CONVULSING_WINDOW, periodicity=0.5)
+    paddling = replace(base, dominant_hz=3.2)
+    pushups = replace(base, dominant_hz=1.5)
+    irregular_slow = replace(base, dominant_hz=1.5, periodicity=0.15)  # no clear rhythm
+    assert "slow_rhythm" not in det.score(paddling)[1]
+    assert "slow_rhythm" in det.score(pushups)[1]
+    assert "slow_rhythm" not in det.score(irregular_slow)[1]  # tonic/irregular phases kept
+    off = ConvulsionDetector(ConvulsionConfig(slow_rhythm_hz=0.0))
+    assert "slow_rhythm" not in off.score(pushups)[1]

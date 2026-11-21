@@ -171,7 +171,7 @@ Region area and flow magnitude are not comparable, because one recording is a ha
 - Rhythm in a seizure may slow towards its end.
 - Slower clonic jerking may occur in other episodes.
 
-A possible change, not made: raise the convulsion band's lower edge (currently `band_hz = [1.0, 6.0]`) towards about 2 Hz, or down-weight rhythm below about 2 Hz, or use strong `low_periodicity` as evidence against. Any of these needs an ADR and evaluation on all labelled footage (seizure, behaviour clips, fixed-vantage negatives, this false alert, synthetic set), plus the owner's knowledge of how fast paddling usually is. Human presence (ADR-013) is the other route.
+**Adopted (ADR-021):** `slow_rhythm_hz = 1.8`. Evaluated on all labelled footage: removes this false alert, keeps the real seizure at the same latency (10.5 s) with no episode window suppressed, and leaves synthetic recall at 5/5. Originally considered: (currently `band_hz = [1.0, 6.0]`) towards about 2 Hz, or down-weight rhythm below about 2 Hz, or use strong `low_periodicity` as evidence against. Any of these needs an ADR and evaluation on all labelled footage (seizure, behaviour clips, fixed-vantage negatives, this false alert, synthetic set), plus the owner's knowledge of how fast paddling usually is. Human presence (ADR-013) is the other route.
 
 ## 6. Known limitations and failure modes
 

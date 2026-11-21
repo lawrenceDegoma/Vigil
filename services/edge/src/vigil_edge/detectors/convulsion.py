@@ -41,6 +41,12 @@ class ConvulsionDetector(Detector):
             suppressed.append("locomotion")
         if w.region_area > c.max_region_area:
             suppressed.append("scene_wide_motion")
+        if (
+            c.slow_rhythm_hz > 0
+            and w.periodicity >= c.slow_rhythm_min_periodicity
+            and 0 < w.dominant_hz < c.slow_rhythm_hz
+        ):
+            suppressed.append("slow_rhythm")  # clearly rhythmic but too slow (e.g. exercise)
 
         persistence = ramp(w.active_ratio, *c.active_ratio_ramp)
         intensity = max(ramp(w.activity, *c.activity_ramp), ramp(w.flow_magnitude, *c.flow_ramp))
