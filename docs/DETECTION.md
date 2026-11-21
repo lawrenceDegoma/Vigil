@@ -155,6 +155,24 @@ Real footage will be harder.
 
 **Speed (Mac, not Pi).** About 980 analysis fps on a 640×360 file at 15 fps analysis: motion ≈ 0.92 ms/frame, everything else < 0.1 ms. That is about 65× real time, excluding decode. **No Raspberry Pi measurement exists yet.** Phase 2 must benchmark capture + analysis + encoding on the Pi 3 B+ before any claim is made.
 
+### 5.4 First false alert from the deployed camera (2026-11-20 23:36 PST)
+
+This is the first real incident from the fixed Pi camera, using the deployed crop config (rules `f9171d04`), about 4 hours into the cloud-connected run. The incident was urgent, `convulsion`, peak 0.82, and lasted 27 s. Alerts and both reminder rounds went to the two household phones through the **mock** provider, and the clip uploaded. The owner reviewed it: **it was the owner doing push-ups inside the analysis box**. The incident was marked `false_positive`, and the clip and label are kept privately in `data/private/pi-incidents/`. Replaying the clip on the Mac reproduces the detection (peak 0.89).
+
+| Feature (active windows) | Real seizure (§5.1, handheld; median, IQR) | Push-ups (fixed camera) |
+|---|---|---|
+| `dominant_hz` | **3.25** (2.52–3.75) | **1.52** (1.49–1.52) |
+| `reversal_rate` (/s) | **6.8** (6.2–7.0) | **3.2** (3.0–3.6) |
+| `low_periodicity` | 0.20 (0.14–0.31) | **0.61** (0.56–0.66) |
+| `camera_motion` | (handheld, stabilised) | 0.005; the camera was steady |
+
+Region area and flow magnitude are not comparable, because one recording is a handheld close-up and the other a far, fixed view. Rhythm frequency is scale-independent and separates these two cleanly. Paddling in the one real episode was about twice as fast as push-ups, and push-ups carry a strong, very regular slow component. **Caveats:**
+- It is one seizure and one false alert.
+- Rhythm in a seizure may slow towards its end.
+- Slower clonic jerking may occur in other episodes.
+
+A possible change, not made: raise the convulsion band's lower edge (currently `band_hz = [1.0, 6.0]`) towards about 2 Hz, or down-weight rhythm below about 2 Hz, or use strong `low_periodicity` as evidence against. Any of these needs an ADR and evaluation on all labelled footage (seizure, behaviour clips, fixed-vantage negatives, this false alert, synthetic set), plus the owner's knowledge of how fast paddling usually is. Human presence (ADR-013) is the other route.
+
 ## 6. Known limitations and failure modes
 
 1. **Motion ≠ subject.** There is no dog or person recognition. Any sustained in-place rhythmic motion can trigger: a person exercising, a fan, a TV in view, curtains in wind, another pet. Mitigations: ROI polygon, camera placement, and later a lightweight detector if the Pi benchmark allows (ADR-006).
