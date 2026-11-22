@@ -82,3 +82,12 @@ def test_clear_slow_rhythm_is_evidence_against_convulsion() -> None:
     assert "slow_rhythm" not in det.score(irregular_slow)[1]  # tonic/irregular phases kept
     off = ConvulsionDetector(ConvulsionConfig(slow_rhythm_hz=0.0))
     assert "slow_rhythm" not in off.score(pushups)[1]
+
+
+def test_multi_limb_spread_marks_strong_windows() -> None:
+    det = ConvulsionDetector(ConvulsionConfig())
+    one_leg = replace(CONVULSING_WINDOW, rhythmic_extent=0.05, region_area=0.04)  # spread 0.25
+    four_legs = replace(CONVULSING_WINDOW, rhythmic_extent=0.2, region_area=0.04)  # spread 1.0
+    assert det.evaluate(one_leg).strong is False
+    assert det.evaluate(four_legs).strong is True
+    assert det.weak_onset_seconds == 20.0 and det.onset_seconds == 10.0

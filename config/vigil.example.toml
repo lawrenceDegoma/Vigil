@@ -31,6 +31,7 @@ flow = true          # dense optical flow (direction / oscillation features)
 flow_width = 160     # optical-flow resolution (CPU cost control on the Pi)
 min_region_area = 0.0004
 slow_lag_seconds = 0.25   # lagged difference for slow movements; 0 disables
+grid = [32, 16]           # per-cell motion grid (columns, rows) for the rhythm's spatial spread
 
 [window]
 seconds = 5.0
@@ -38,6 +39,9 @@ step_seconds = 0.5
 activity_floor = 0.004
 band_hz = [1.0, 6.0]       # rhythmic band for convulsion-like motion (< target_fps/2)
 low_band_hz = [0.4, 1.2]   # slow band for retching-like motion
+cell_min_activity = 0.02   # a grid cell must move this much (mean fraction) to count
+cell_periodicity = 0.3     # ... with a rhythm this clear
+cell_hz_tolerance = 0.75   # ... at the window's dominant frequency (+/- Hz)
 
 [detectors.convulsion]
 mode = "alert"             # off | shadow | alert
@@ -55,6 +59,9 @@ max_lighting_change = 0.06
 max_region_area = 0.6
 slow_rhythm_hz = 1.8          # clear rhythm slower than this (Hz) is evidence against; 0 disables (ADR-021)
 slow_rhythm_min_periodicity = 0.3
+multi_region_extent = 0.8      # rhythm spread vs body size counted as multi-limb (ADR-022)
+multi_region_min_share = 0.3   # share of active windows that must be multi-limb for the 10 s onset
+single_region_onset_seconds = 20.0  # otherwise (one spot, e.g. a scratching leg) wait this long
 
 [detectors.vomiting]       # EXPERIMENTAL — shadow mode by default (ADR-005)
 mode = "shadow"

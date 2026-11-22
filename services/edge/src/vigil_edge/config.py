@@ -89,8 +89,13 @@ class MotionConfig:
     # Second, lagged difference for slow movements (e.g. heaving) that move too
     # little between consecutive frames to register. 0 disables.
     slow_lag_seconds: float = 0.25
+    # Coarse grid (columns, rows) of per-cell motion, used to measure how far apart
+    # the rhythmically moving parts are (one leg vs several limbs). DETECTION §5.6.
+    grid: tuple[int, int] = (32, 16)
 
     def __post_init__(self) -> None:
+        if not (4 <= self.grid[0] <= 64 and 2 <= self.grid[1] <= 64):
+            raise ConfigError("motion.grid must be [4..64 columns, 2..64 rows]")
         if not (0.0 <= self.slow_lag_seconds <= 2.0):
             raise ConfigError("motion.slow_lag_seconds must be within [0, 2]")
         if not (1 <= self.diff_threshold <= 255):
@@ -106,8 +111,18 @@ class WindowConfig:
     activity_floor: float = 0.004  # motion_fraction above which a frame counts as active
     band_hz: Range = (1.0, 6.0)  # rhythmic band for convulsion-like motion
     low_band_hz: Range = (0.4, 1.2)  # slow rhythmic band for retching-like motion
+    # A grid cell is "rhythmic" when it moves (mean moving fraction >= cell_min_activity)
+    # with a clear in-band rhythm (concentration >= cell_periodicity) at the window's
+    # dominant frequency (within cell_hz_tolerance). DETECTION §5.6.
+    cell_min_activity: float = 0.02
+    cell_periodicity: float = 0.3
+    cell_hz_tolerance: float = 0.75
 
     def __post_init__(self) -> None:
+        if not (0.0 < self.cell_min_activity < 1.0 and 0.0 < self.cell_periodicity <= 1.0):
+            raise ConfigError("window.cell_min_activity / cell_periodicity must be within (0, 1)")
+        if not (0.1 <= self.cell_hz_tolerance <= 3.0):
+            raise ConfigError("window.cell_hz_tolerance must be within [0.1, 3]")
         if not (1.0 <= self.seconds <= 30.0):
             raise ConfigError("window.seconds must be within [1, 30]")
         if not (0.05 <= self.step_seconds <= self.seconds):
@@ -139,6 +154,14 @@ class ConvulsionConfig:
     # (e.g. a person exercising). 0 disables. See DETECTION §5.4 and ADR-021.
     slow_rhythm_hz: float = 1.8  # ADR-021
     slow_rhythm_min_periodicity: float = 0.3  # only when the rhythm is this clear
+    # Multi-limb evidence (DETECTION §5.6, ADR-022): a window is "strong" when the
+    # rhythmically moving cells spread at least multi_region_extent x the size of the
+    # moving body (one scratching leg stays compact; paddling limbs span the body).
+    # A candidate confirms after onset_seconds if >= multi_region_min_share of its
+    # active windows are strong, otherwise only after single_region_onset_seconds.
+    multi_region_extent: float = 0.8
+    multi_region_min_share: float = 0.3
+    single_region_onset_seconds: float = 20.0
 
     def __post_init__(self) -> None:
         _validate_detector("convulsion", self.threshold, self.onset_seconds, self.min_active_ratio)
@@ -146,6 +169,14 @@ class ConvulsionConfig:
             _check_range(f"detectors.convulsion.{name}", getattr(self, name))
         if not (0.0 <= self.rhythm_floor <= 1.0):
             raise ConfigError("detectors.convulsion.rhythm_floor must be within [0, 1]")
+        if not (
+            0.0 < self.multi_region_extent <= 5.0 and 0.0 <= self.multi_region_min_share <= 1.0
+        ):
+            raise ConfigError("detectors.convulsion.multi_region_* out of range")
+        if self.single_region_onset_seconds < self.onset_seconds:
+            raise ConfigError(
+                "detectors.convulsion.single_region_onset_seconds must be >= onset_seconds"
+            )
         if not (0.0 <= self.slow_rhythm_hz <= 3.0):
             raise ConfigError("detectors.convulsion.slow_rhythm_hz must be within [0, 3]")
         if not (0.0 < self.slow_rhythm_min_periodicity <= 1.0):

@@ -231,6 +231,15 @@ class MotionFeatureExtractor:
                 flow_dy = float(vecs[:, 1].mean()) * scale
                 flow_mag = float(np.linalg.norm(vecs, axis=1).mean()) * scale
 
+        # 6. Coarse per-cell motion (where in the frame things move), for the spatial
+        #    extent of rhythmic motion: one leg vs several limbs (DETECTION §5.6).
+        gx, gy = self.cfg.grid
+        if motion_fraction > 0:
+            cells = cv2.resize(mask, (gx, gy), interpolation=cv2.INTER_AREA).astype(np.float32)
+            cells /= 255.0
+        else:
+            cells = np.zeros((gy, gx), np.float32)
+
         self.last_debug = MotionDebug(mask=mask, transform=full_tf)
         return FrameFeatures(
             index=index,
@@ -246,4 +255,6 @@ class MotionFeatureExtractor:
             centroid=centroid,
             region=region,
             region_area=region_area,
+            cells=cells,
+            aspect=self.size[1] / self.size[0],
         )

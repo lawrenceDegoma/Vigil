@@ -60,6 +60,7 @@ class _Candidate:
     last_active: float
     windows: int = 0
     active_windows: int = 0
+    strong_windows: int = 0
     peak: float = 0.0
     confirmed: bool = False
 
@@ -152,6 +153,7 @@ class IncidentStateMachine:
                 cand = track.candidate = _Candidate(onset=onset, last_active=t)
             cand.last_active = t
             cand.active_windows += 1
+            cand.strong_windows += int(r.strong)
             cand.peak = max(cand.peak, r.score)
         if cand is None:
             return []
@@ -165,7 +167,11 @@ class IncidentStateMachine:
             return []
         lasted = t - cand.onset
         ratio = cand.active_windows / cand.windows
-        if lasted < det.onset_seconds or ratio < det.min_active_ratio:
+        strong_share = cand.strong_windows / cand.active_windows
+        needed = (
+            det.onset_seconds if strong_share >= det.strong_min_share else det.weak_onset_seconds
+        )
+        if lasted < needed or ratio < det.min_active_ratio:
             return []
 
         cand.confirmed = True

@@ -94,6 +94,7 @@ def result(
     active: bool = True,
     score: float | None = None,
     mode: DetectorMode = DetectorMode.ALERT,
+    strong: bool = True,
 ) -> DetectionResult:
     signal = SignalType.CONVULSION if detector == "convulsion" else SignalType.VOMITING
     return DetectionResult(
@@ -103,6 +104,7 @@ def result(
         score if score is not None else (0.9 if active else 0.0),
         active,
         coverage=0.1,
+        strong=strong,
     )
 
 

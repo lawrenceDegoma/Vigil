@@ -227,3 +227,41 @@ def test_onset_estimate_never_precedes_window_start() -> None:
         t += STEP
     inc = events(outs, IncidentEventType.OPENED)[0].incident
     assert inc.started_at == pytest.approx(0.0)
+
+
+def _drive_conv(
+    fsm: IncidentStateMachine, until: float, span: tuple[float, float], strong
+) -> list[Output]:  # type: ignore[no-untyped-def]
+    out: list[Output] = []
+    t, i = 0.0, 0
+    while t <= until + 1e-9:
+        active = span[0] <= t < span[1]
+        out += fsm.update(
+            t,
+            [result("convulsion", active, strong=strong(i)), result("vomiting", False)],
+            FIRST_WINDOW,
+        )
+        t, i = round(t + STEP, 6), i + 1
+    return out
+
+
+def test_single_region_rhythm_needs_the_longer_onset() -> None:
+    """One spot moving (e.g. a scratching leg) must persist 20 s, not 10 s (ADR-022)."""
+    short = _drive_conv(make_fsm(), 60, (10, 26), strong=lambda i: False)  # ~16 s
+    assert events(short, IncidentEventType.OPENED) == []
+    long = _drive_conv(make_fsm(), 80, (10, 45), strong=lambda i: False)
+    [opened] = events(long, IncidentEventType.OPENED)
+    assert opened.at - opened.incident.started_at >= 20.0
+
+
+def test_multi_limb_rhythm_keeps_the_fast_onset() -> None:
+    outs = _drive_conv(make_fsm(), 60, (10, 30), strong=lambda i: True)
+    [opened] = events(outs, IncidentEventType.OPENED)
+    assert 10.0 <= opened.at - opened.incident.started_at < 11.0
+
+
+def test_intermittent_multi_limb_evidence_is_enough() -> None:
+    # Real paddling shows the spread in most but not all windows; 1 in 3 suffices.
+    outs = _drive_conv(make_fsm(), 60, (10, 30), strong=lambda i: i % 3 == 0)
+    [opened] = events(outs, IncidentEventType.OPENED)
+    assert opened.at - opened.incident.started_at < 11.0

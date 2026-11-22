@@ -14,6 +14,7 @@ import numpy as np
 import numpy.typing as npt
 
 Image = npt.NDArray[np.uint8]
+CellGrid = npt.NDArray[np.float32]
 
 
 class SignalType(StrEnum):
@@ -73,6 +74,10 @@ class FrameFeatures:
     centroid: tuple[float, float] | None  # dominant moving region centre, normalized 0..1
     region: tuple[float, float, float, float] | None  # dominant region bbox (x, y, w, h), 0..1
     region_area: float  # bbox area / frame area
+    # Moving fraction per grid cell (rows x columns), and frame height / width, for
+    # the spatial extent of rhythmic motion. None when not computed.
+    cells: CellGrid | None = None
+    aspect: float = 0.5625
 
 
 @dataclass(frozen=True, slots=True)
@@ -97,6 +102,11 @@ class WindowFeatures:
     region_area: float  # mean dominant-region area
     camera_motion: float  # max global motion in window
     lighting_change: float  # max brightness delta in window
+    # Spatial structure of the rhythm (DETECTION §5.6): how many grid cells move with the
+    # window's rhythm, in how many separate clusters, and how far apart they reach.
+    rhythmic_cells: float = 0.0  # fraction of grid cells
+    rhythmic_clusters: int = 0
+    rhythmic_extent: float = 0.0  # max distance between rhythmic cells, frame-widths
 
     def as_dict(self) -> dict[str, float]:
         return {f.name: float(getattr(self, f.name)) for f in fields(self)}
@@ -116,6 +126,10 @@ class DetectionResult:
     # estimate when the signal began within the first active window.
     coverage: float = 1.0
     components: dict[str, float] = field(default_factory=dict)
+    # Strong evidence for this signal in this window (e.g. rhythm spread over several
+    # limbs). Candidates with enough strong windows confirm after ``onset_seconds``;
+    # others need the detector's longer ``weak_onset_seconds`` (incidents.py).
+    strong: bool = True
 
 
 @dataclass(slots=True)

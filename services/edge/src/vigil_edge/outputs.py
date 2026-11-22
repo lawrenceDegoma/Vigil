@@ -92,7 +92,9 @@ class EventsJsonlWriter(NullObserver):
 
 
 _WINDOW_FIELDS = [f.name for f in fields(WindowFeatures)]
-_FRAME_FIELDS = [f.name for f in fields(FrameFeatures) if f.name not in ("centroid", "region")]
+_FRAME_FIELDS = [
+    f.name for f in fields(FrameFeatures) if f.name not in ("centroid", "region", "cells")
+]
 
 
 class TimelineCsvWriter(NullObserver):

@@ -110,3 +110,40 @@ def test_lighting_and_camera_maxima() -> None:
     w = _feed(WindowConfig(), gen, 8.0)[-1]
     assert w.lighting_change == pytest.approx(0.2)
     assert w.camera_motion == pytest.approx(0.3)
+
+
+def _cells(
+    rows: int,
+    cols: int,
+    blobs: list[tuple[int, int, float]],
+    seconds: float = 5.0,
+    fs: float = 15.0,
+):  # type: ignore[no-untyped-def]
+    """Time x cells: each blob (row, col, hz) oscillates; everything else is still."""
+    import numpy as np
+
+    n = int(seconds * fs)
+    t = np.arange(n) / fs
+    x = np.zeros((n, rows, cols))
+    for r, c, hz in blobs:
+        x[:, r, c] = 0.3 + 0.25 * np.sin(2 * np.pi * hz * t)
+    return x.reshape(n, -1)
+
+
+def test_rhythmic_regions_one_spot_vs_two_limbs() -> None:
+    from vigil_edge.windowing import rhythmic_regions
+
+    rows, cols = 16, 32
+    args = dict(grid=(cols, rows), aspect=0.5, sample_rate=15.0, band=(1.0, 6.0),
+                ref_hz=3.0, min_activity=0.02, min_periodicity=0.3, hz_tolerance=0.75)  # fmt: skip
+    leg = [(8, 10, 3.0), (8, 11, 3.0), (9, 10, 3.0)]
+    frac, clusters, extent = rhythmic_regions(_cells(rows, cols, leg), **args)
+    assert clusters == 1 and extent < 0.1 and frac > 0
+    front_and_hind = [*leg, (8, 20, 3.0), (9, 20, 3.0)]
+    _, clusters, extent = rhythmic_regions(_cells(rows, cols, front_and_hind), **args)
+    assert clusters == 2 and extent > 0.3
+    off_rhythm = [*leg, (8, 20, 1.2)]  # moves, but not with the window's rhythm
+    _, clusters, extent = rhythmic_regions(_cells(rows, cols, off_rhythm), **args)
+    assert clusters == 1 and extent < 0.1
+    still = rhythmic_regions(_cells(rows, cols, []), **args)
+    assert still == (0.0, 0, 0.0)
