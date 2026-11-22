@@ -196,6 +196,20 @@ Rhythm speed does not separate scratching from paddling, which is why ADR-021 co
 
 15 s is within the design's suggested range (DESIGN, 10–15 s) and removes this alert at the cost of about 5 s more alert latency. A scratching bout longer than about 15 s would still alert. Adopting it is the **owner's decision** (pending).
 
+### 5.6 Multi-limb evidence: spatial spread of the rhythm (ADR-022)
+
+The spread of rhythmic cells relative to the moving body's size separates one scratching leg from paddling limbs, on the data available:
+
+| Clip (32x16 grid) | Spread p10 / p25 / median / max | Strong (≥ 0.8) scoring windows |
+|---|---|---|
+| Real seizure (handheld) | 0.43 / 1.15 / **1.58** / 2.29 | 65 % in the first 15 s, 81 % overall |
+| Synthetic 4-leg paddling | 0.88 / 0.94 / **0.95** / 0.98 | 93 % |
+| Dog scratching (Pi) | 0.52 / 0.63 / **0.68** / 1.15 | **0 %** |
+| Push-ups (Pi) | 0.23 / 0.24 / 0.85 / 1.56 | 50 % (already suppressed by ADR-021) |
+| Petting (fixed / close-up) | median 1.35 / 1.88 | 100 % (keeps the 10 s onset, as before) |
+
+The first grid (16x8, about 24 px cells) and absolute extents did not separate them: the scratch spread 0.14 frame-widths against 0.20 for four-leg paddling, and handheld close-ups are not comparable to the Pi view. See ADR-022 for the rule and the evaluation.
+
 ## 6. Known limitations and failure modes
 
 1. **Motion ≠ subject.** There is no dog or person recognition. Any sustained in-place rhythmic motion can trigger: a person exercising, a fan, a TV in view, curtains in wind, another pet. Mitigations: ROI polygon, camera placement, and later a lightweight detector if the Pi benchmark allows (ADR-006).

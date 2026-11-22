@@ -148,3 +148,32 @@ At 1.8 and 2.0, none of the real seizure's 119 episode windows were suppressed. 
 - The other route remains human presence (ADR-013).
 
 The rules version changes: default `d1574146`, owner's deployed crop config `b0826d99`.
+
+### ADR-022 — Multi-limb evidence (spatial spread of the rhythm) gates the 10 s onset
+**Status:** accepted (2026-11-21); built and evaluated, **not yet deployed** (needs a Pi restart).
+**Context.** The second deployed false alert was the dog scratching himself with a hind leg (DETECTION §5.5): fast (about 4 Hz) like paddling, so ADR-021 does not apply. The owner's knowledge (ADR-013): an episode is paddling of several limbs; the scratch reflex is one leg. The owner preferred this to a longer fixed delay.
+**Decision.**
+- **Grid.** `motion.grid = [32, 16]`: per-frame moving fraction per cell.
+- **Rhythmic cells.** Per window, a cell is rhythmic when it moves (mean ≥ 0.02), has a clear in-band rhythm (concentration ≥ 0.3), and runs at the window's dominant frequency (± 0.75 Hz).
+- **Spread.** `rhythmic_extent` is the largest distance between rhythmic cells. Spread is that extent divided by √(moving-region area), so it is relative to body size.
+- **Strong windows and onset.** A window with spread ≥ 0.8 is *strong*. A candidate with ≥ 30 % strong active windows confirms after `onset_seconds` (10 s); otherwise only after `single_region_onset_seconds` (20 s).
+- **Cost bounds.** The spread is computed only for windows with sustained motion, on at most 160 moving cells, subsampled evenly in space.
+- **Generic state machine.** `DetectionResult.strong` defaults to true, so other detectors keep one onset tier.
+
+**Evidence (2026-11-21).** All labelled footage:
+
+| Set | Before (10 s fixed) | After |
+|---|---|---|
+| Real seizure (handheld) | detected, 10.5 s | **detected, 10.5 s** (65 % of its first-15 s scoring windows are strong, from the first second) |
+| Deployed false alerts (push-ups, scratching) | 1 FA (scratching) | **0**. Scratching: 0 % strong windows. |
+| Behaviour clips, fixed-vantage clips | 0 FA | 0 FA |
+| Synthetic (12 clips; seizures paddle 4 legs, scratch = 1 leg) | 5/5, 10.3 s, 0 FA | 5/5, 10.3 s, 0 FA |
+
+Pi 3 cost (micro-benchmark while soft-throttled and sharing the CPU with the live service): grid 0.7 ms/frame; spread 8 ms per window typically, 15 ms worst case (whole view moving). Run every 0.5 s only during sustained motion, so the worst frame stays well inside the 66.7 ms budget. To be confirmed by a camera benchmark after deployment.
+**Limits.**
+- One real seizure, filmed handheld and close up, and one scratching bout from the Pi. The 0.8 threshold sits between the scratching (median 0.68) and four-leg paddling (synthetic 0.95, real 1.58).
+- Petting (a hand and a reacting dog) also looks multi-limb, so it keeps today's 10 s timing. It is not made worse.
+- If an episode's limbs are hidden or move as one blob, it alerts at 20 s instead of 10 s. Nothing is suppressed outright.
+- Focal seizures (one limb or the face) behave like the single-region case: alert at 20 s.
+
+Rules version: default `856a87d4`, deployed crop config `334bf782`.
