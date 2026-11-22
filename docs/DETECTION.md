@@ -173,6 +173,29 @@ Region area and flow magnitude are not comparable, because one recording is a ha
 
 **Adopted (ADR-021):** `slow_rhythm_hz = 1.8`. Evaluated on all labelled footage: removes this false alert, keeps the real seizure at the same latency (10.5 s) with no episode window suppressed, and leaves synthetic recall at 5/5. Originally considered: (currently `band_hz = [1.0, 6.0]`) towards about 2 Hz, or down-weight rhythm below about 2 Hz, or use strong `low_periodicity` as evidence against. Any of these needs an ADR and evaluation on all labelled footage (seizure, behaviour clips, fixed-vantage negatives, this false alert, synthetic set), plus the owner's knowledge of how fast paddling usually is. Human presence (ADR-013) is the other route.
 
+### 5.5 Second deployed false alert: the dog scratching himself (2026-11-21 13:30 PST)
+
+This came after ADR-021 was deployed (rules `b0826d99`). The incident was urgent, `convulsion`, peak 1.00, and lasted about 10 s, with alerts and reminders through the **mock** provider only. The clip was retrieved from private storage. The owner confirmed it: **the dog scratching himself with a hind leg**, with walking just before and after. The incident was marked `false_positive`, and the clip and label are kept privately in `data/private/pi-incidents/`.
+
+| Feature (active windows) | Scratching (Pi) | Real seizure (§5.1) | Push-ups (§5.4) |
+|---|---|---|---|
+| `dominant_hz` | **3.8–4.0** | 3.25 | 1.5 |
+| `periodicity` p50 / max | **0.84 / 0.89** | 0.35 / **0.62** | 0.46 |
+| `reversal_rate` (/s) | 7.4–7.8 | 6.8 | 3.2 |
+| active run | **about 10 s** | 68 s | about 35 s |
+
+Rhythm speed does not separate scratching from paddling, which is why ADR-021 correctly did not apply. Two features do separate them:
+- **Regularity.** Scratching was almost metronomic (≥ 0.84), while the real seizure never exceeded 0.62, and petting, chest-scratch and chewing clips stayed ≤ 0.51. But the synthetic convulsions are unrealistically regular (median 0.73–0.77), so a regularity cap would break the synthetic regression set. It also rests on one seizure and one scratching bout, so it is **not adopted**. Revisit with more real data, and make the synthetic generator less regular first, with its own ADR.
+- **Duration** (`onset_seconds`), evaluated on all labelled footage:
+
+| onset_seconds | Real seizure | Pi false alerts (push-ups, scratching) | Behaviour / fixed clips | Synthetic |
+|---|---|---|---|---|
+| 10 (current) | detected, **10.5 s** | 1 (scratching; push-ups already removed by ADR-021) | 0 / 0 | 5/5, 10.3 s |
+| **15** | detected, **15.3 s** | **0** | 0 / 0 | 5/5, 15.2 s |
+| 20 | detected, 20.6 s | 0 | 0 / 0 | 5/5, 20.2 s |
+
+15 s is within the design's suggested range (DESIGN, 10–15 s) and removes this alert at the cost of about 5 s more alert latency. A scratching bout longer than about 15 s would still alert. Adopting it is the **owner's decision** (pending).
+
 ## 6. Known limitations and failure modes
 
 1. **Motion ≠ subject.** There is no dog or person recognition. Any sustained in-place rhythmic motion can trigger: a person exercising, a fan, a TV in view, curtains in wind, another pet. Mitigations: ROI polygon, camera placement, and later a lightweight detector if the Pi benchmark allows (ADR-006).
