@@ -150,7 +150,7 @@ At 1.8 and 2.0, none of the real seizure's 119 episode windows were suppressed. 
 The rules version changes: default `d1574146`, owner's deployed crop config `b0826d99`.
 
 ### ADR-022 — Multi-limb evidence (spatial spread of the rhythm) gates the 10 s onset
-**Status:** accepted (2026-11-21); built and evaluated, **not yet deployed** (needs a Pi restart).
+**Status:** accepted (2026-11-21); **deployed** on the Pi 2026-11-21 23:54 PST (rules `334bf782`; camera benchmark run 6 passes ADR-018, p95 24.8 ms, 0 drops).
 **Context.** The second deployed false alert was the dog scratching himself with a hind leg (DETECTION §5.5): fast (about 4 Hz) like paddling, so ADR-021 does not apply. The owner's knowledge (ADR-013): an episode is paddling of several limbs; the scratch reflex is one leg. The owner preferred this to a longer fixed delay.
 **Decision.**
 - **Grid.** `motion.grid = [32, 16]`: per-frame moving fraction per cell.

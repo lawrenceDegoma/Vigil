@@ -90,3 +90,39 @@ Deployed config (crop, 640x360 lores, 384 px; rules `f9171d04`), camera in its f
   - **Vomiting (shadow mode):** 79 detections and 50 shadow clips (about 415 MB, roughly 8 MB each). That is disk churn on the SD card; the detector stays in shadow, and its clips should be reviewed or disabled (owner decision).
 - **Disk:** clips 415 MB (shadow only), database 1 MB, root filesystem 10 % used.
 - **Not yet done:** PI_SETUP §6 fault checklist (reboot, power loss, no camera, kill, low disk, maintenance).
+
+## Soak 2 (2026-11-21 00:12 to 23:47 PST): 23 h 35 min, cloud connected
+
+Deployed crop config, rules `b0826d99` (ADR-021), `[cloud]` enabled (heartbeats and incident events to Supabase every minute), heatsinks and no fan. Source: 1,411 heartbeats plus the service journal. The owner stopped the service at 23:47 to deploy ADR-022, 25 minutes short of 24 h. Strictly, this still does **not** meet "≥ 24 h before an unattended pilot"; the two runs together cover about 47 h with no fault.
+
+| Hour (PST) | fps min | temp avg / max °C | CPU avg % | mem used % | dropped |
+|---|---|---|---|---|---|
+| 00–02h | 14.98 | 63.8–64.3 / 65.5 | 62–66 | 29.1 | 0 |
+| 03–05h | 14.98 | 60.8–61.1 / 62.3 | 51–52 | 28.3–29.2 | 0 |
+| 07h | 14.96 | 63.0 / 64.5 | 70 | 28.8 | 0 |
+| 13h | 14.95 | 63.0 / 65.0 | 67 | 28.5 | 0 |
+| 18–20h | 14.96 | 64.3–64.8 / **66.6** | 67–70 | 28.9–29.4 | 0 |
+| 23h | 14.97 | 63.9 / 66.1 | 70 | 30.4 | 0 |
+
+- **Hard gate (ADR-018) held:** fps never below 14.95; **0 dropped frames**; camera and detector healthy in every heartbeat; 0 restarts, 0 errors; heartbeat gaps never above 60.2 s; cloud queue depth always 0.
+- **Warnings (unchanged from soak 1):** soft-throttled (≥ 60 °C) all day, peak 66.6 °C; CPU 51–70 % hourly (mean 64 %, p95 75 %). Airflow is still needed before a pilot.
+- **Memory:** flat at 28.3–29.4 % for most of the day (it fell back overnight), 30.2–30.4 % in the last three hours. No steady leak, but keep watching.
+- **Detections:**
+  - **Convulsion:** 1 urgent incident (13:30, the dog scratching with a hind leg; marked false_positive; DETECTION §5.5, fixed by ADR-022). Mock SMS only.
+  - **Vomiting (shadow):** 55 shadow clips. Recordings on disk went from 457 MB to 925 MB (retention-bounded); 53 GB free.
+
+## Run 6 (2026-11-22 07:47 UTC): ADR-022 deployed (rules `334bf782`)
+
+Same framing as run 5, with the 32x16 motion grid and per-window rhythm spread. Service stopped during the run; Pi soft-throttled.
+
+| Measure | Run 5 (`f9171d04`) | Run 6 (`334bf782`) | Gate (ADR-018) |
+|---|---|---|---|
+| Delivered fps / dropped | 14.97 / 0 | 14.97 / 0 | pass |
+| Analysis ms/frame mean / p95 (max) | — / 29.5 (55.0) | 19.2 / 24.8 (62.8) | pass; under the 40 ms warning |
+| Stages: preprocess / motion / window | 1.9 / — / — | 1.9 / 16.4 / 0.86 ms | — |
+| Process CPU mean (p95) | 68 % | 67 % (72 %) | warning (> 60 %) |
+| Temperature / `throttled` | 64.5 °C / `0x80008` | 64.5 °C / `0x80008` | warning |
+| Peak RSS | 167 MB | 167 MB | pass |
+| Test clip finish (off-thread) | 1.26 s | 1.28 s | pass |
+
+ADR-022 adds no measurable cost at this scene's motion level (the window stage, which includes the rhythm spread, averages 0.86 ms per frame). The spread runs only when motion is sustained, so heavy-motion scenes cost more; the off-line worst case was 15 ms per window (DETECTION §5.6). Run 6 had less motion in view than run 3, so the 40 ms warning should be confirmed in the soak.
