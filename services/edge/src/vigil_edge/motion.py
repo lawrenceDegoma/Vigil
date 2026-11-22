@@ -235,8 +235,11 @@ class MotionFeatureExtractor:
         #    extent of rhythmic motion: one leg vs several limbs (DETECTION §5.6).
         gx, gy = self.cfg.grid
         if motion_fraction > 0:
-            cells = cv2.resize(mask, (gx, gy), interpolation=cv2.INTER_AREA).astype(np.float32)
-            cells /= 255.0
+            # Nearest-neighbour resize to an exact multiple, then block means: much
+            # cheaper on a Pi than INTER_AREA at a non-integer ratio.
+            k = 4
+            small = cv2.resize(mask, (gx * k, gy * k), interpolation=cv2.INTER_NEAREST)
+            cells = small.reshape(gy, k, gx, k).mean(axis=(1, 3), dtype=np.float32) / 255.0
         else:
             cells = np.zeros((gy, gx), np.float32)
 

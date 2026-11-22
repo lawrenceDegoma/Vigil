@@ -66,7 +66,7 @@ def spectral_concentration(
 
 
 def spectral_concentration_columns(
-    x: FloatArray, sample_rate: float, band: tuple[float, float]
+    x: FloatArray, sample_rate: float, band: tuple[float, float], oversample: int = 4
 ) -> tuple[FloatArray, FloatArray]:
     """Vectorised ``spectral_concentration`` for every column of ``x`` (time x signals)."""
     n, c = x.shape
@@ -79,7 +79,7 @@ def spectral_concentration_columns(
     resid = x - design @ coef
     live = resid.std(axis=0) > 1e-9
     resid = resid * np.hanning(n)[:, None]
-    n_fft = 1 << int(np.ceil(np.log2(n * 4)))
+    n_fft = 1 << int(np.ceil(np.log2(n * oversample)))
     power = np.abs(np.fft.rfft(resid, n_fft, axis=0)) ** 2
     freqs = np.fft.rfftfreq(n_fft, d=1.0 / sample_rate)
     above_dc = freqs >= _DC_CUTOFF_HZ
@@ -105,6 +105,7 @@ def rhythmic_regions(
     min_activity: float,
     min_periodicity: float,
     hz_tolerance: float,
+    max_cells: int = 160,
 ) -> tuple[float, int, float]:
     """Where the rhythm is: (fraction of rhythmic cells, clusters, extent in frame-widths).
 
@@ -115,18 +116,25 @@ def rhythmic_regions(
     paddling limbs span the body.
     """
     cols, rows = grid
-    active = cells.mean(axis=0) >= min_activity
-    if not active.any():
+    mean = cells.mean(axis=0)
+    idx = np.flatnonzero(mean >= min_activity)
+    if idx.size == 0:
         return 0.0, 0, 0.0
-    conc, hz = spectral_concentration_columns(cells, sample_rate, band)
-    clear = active & (conc >= min_periodicity)
+    if idx.size > max_cells:
+        # Bound the cost with a spatially even subsample. Keeping only the busiest
+        # cells shrank the measured spread in close-ups (seizure alert 10.5 -> 12.6 s).
+        idx = idx[np.linspace(0, idx.size - 1, max_cells).astype(int)]
+    conc, hz = spectral_concentration_columns(cells[:, idx], sample_rate, band, oversample=2)
+    clear = conc >= min_periodicity
     if not clear.any():
         return 0.0, 0, 0.0
     ref = ref_hz if ref_hz > 0 else float(np.median(hz[clear]))
-    rhythmic = clear & (np.abs(hz - ref) <= hz_tolerance)
-    count = int(rhythmic.sum())
+    keep = clear & (np.abs(hz - ref) <= hz_tolerance)
+    count = int(keep.sum())
     if count == 0:
         return 0.0, 0, 0.0
+    rhythmic = np.zeros(rows * cols, dtype=bool)
+    rhythmic[idx[keep]] = True
     grid_mask = rhythmic.reshape(rows, cols).astype(np.uint8)
     n_labels, _ = cv2.connectedComponents(grid_mask, connectivity=8)
     ys, xs = np.nonzero(grid_mask)
@@ -228,7 +236,8 @@ class WindowAnalyzer:
 
         rhythm_cells, rhythm_clusters, rhythm_extent = 0.0, 0, 0.0
         grids = [f.cells for f in frames if f.cells is not None]
-        if len(grids) == n and n >= 8:
+        sustained = float(np.mean(motion > cfg.activity_floor)) >= 0.5
+        if sustained and len(grids) == n and n >= 8:  # only matters for sustained motion
             rows, cols = grids[0].shape
             stack = np.stack([g.reshape(-1) for g in grids]).astype(np.float64)
             rhythm_cells, rhythm_clusters, rhythm_extent = rhythmic_regions(
