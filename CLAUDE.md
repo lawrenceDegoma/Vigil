@@ -80,6 +80,7 @@ supabase/                  # Phase 3 backend (local stack via pinned CLI in pack
   functions/               # Deno Edge Functions: device-ingest, dispatch; _shared/ logic + unit tests
   tests/database/          # pgTAP: permissions + engine; tests/e2e/: SMS dry run
 apps/web/                  # Phase 4
+site/                      # public Vigil Alerts program pages (SMS terms/privacy/opt-in) -> GitHub Pages
 deploy/pi/                 # install.sh, vigil-edge.service (Type=notify, watchdog, hardened), journald limits
 scripts/                   # reproducible dev scripts
 ```
