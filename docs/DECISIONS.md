@@ -177,3 +177,20 @@ Pi 3 cost (micro-benchmark while soft-throttled and sharing the CPU with the liv
 - Focal seizures (one limb or the face) behave like the single-region case: alert at 20 s.
 
 Rules version: default `856a87d4`, deployed crop config `334bf782`.
+
+### ADR-023 — Convulsion onset 25 s (both tiers)
+**Status:** accepted by the owner (2026-11-24); **deployed** on the Pi 2026-11-24 13:05 PST (rules `d200d123`). Changes the onset values of ADR-022.
+**Context.** With ADR-022 deployed, the Pi raised 6 urgent false alerts in about 61 h (DETECTION §5.7): four sitting or lying hind-leg scratches, often close to the camera, where the whole body shakes and the rhythm counts as multi-limb; and one belly rub by a person. Rhythm frequency overlaps the real seizure, so it cannot separate them. Duration does in the data we have: scratch bouts lasted about 6–22 s; the real convulsion about 68 s.
+**Decision.**
+- `detectors.convulsion.onset_seconds = 25` and `single_region_onset_seconds = 25`. With equal onsets the multi-limb tier changes nothing; its features and config stay, so it can return once it is reliable (for example with posture cues on stronger hardware).
+- FSM unit tests pin explicit 10 s / 20 s onsets, so they test persistence mechanics rather than the default.
+**Evaluation** (same labelled footage as DETECTION §5.7):
+- Real seizure: detected, latency 25.4 s (was 10.5 s).
+- 8 deployed Pi incident clips (push-ups and 7 scratching or petting): 0 convulsion incidents.
+- Behaviour and fixed-vantage negatives: 0. Synthetic: 5/5, 0 false alerts, latency 25.1–25.5 s.
+**Consequences.**
+- **Alerts arrive about 15 s later.** Owner judgement: acceptable against the 5-minute emergency guideline and the cost of repeated false urgent texts to the household.
+- **A convulsion shorter than about 25 s never alerts** (previously 10 s).
+- **The value was chosen on the clips it is evaluated on.** A longer scratch, or sustained petting, can still alert. The belly rub stays quiet because its rhythm was intermittent, not because human contact is recognised (ADR-013 remains open).
+- Rules versions: default `505de664`; the owner's deployed crop config `d200d123`.
+

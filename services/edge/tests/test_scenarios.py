@@ -38,8 +38,8 @@ def test_convulsion_detected_once_with_bounded_latency() -> None:
     m = evaluate(detections_from_result(res), get_scenario("convulsion").labels)
     conv = m[SignalType.CONVULSION]
     assert conv.recall == 1.0 and conv.false_alerts == 0
-    # onset_seconds (10 s) plus a little window lag
-    assert 9.0 <= conv.latencies[0] <= 13.0
+    # onset_seconds (25 s, ADR-023) plus a little window lag
+    assert 24.0 <= conv.latencies[0] <= 28.0
     assert inc.ended_at is not None and 78 <= inc.ended_at <= 84
 
 

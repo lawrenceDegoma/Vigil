@@ -126,7 +126,8 @@ class FailingLive(FrameSource):
 
 
 def test_camera_failure_mid_incident_closes_and_reconnects(tmp_path: Path) -> None:
-    sources = iter([FailingLive(synth("convulsion"), fail_at=45.0), synth("rest")])
+    # Episode 20-80 s; with the 25 s onset (ADR-023) the incident opens at ~45 s.
+    sources = iter([FailingLive(synth("convulsion"), fail_at=60.0), synth("rest")])
     slept: list[float] = []
     svc = EdgeService(cfg(tmp_path), lambda: next(sources), sleep=slept.append)
     svc.run(housekeeping_thread=False)

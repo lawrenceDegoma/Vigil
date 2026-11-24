@@ -90,4 +90,4 @@ def test_multi_limb_spread_marks_strong_windows() -> None:
     four_legs = replace(CONVULSING_WINDOW, rhythmic_extent=0.2, region_area=0.04)  # spread 1.0
     assert det.evaluate(one_leg).strong is False
     assert det.evaluate(four_legs).strong is True
-    assert det.weak_onset_seconds == 20.0 and det.onset_seconds == 10.0
+    assert det.weak_onset_seconds == 25.0 and det.onset_seconds == 25.0  # ADR-023

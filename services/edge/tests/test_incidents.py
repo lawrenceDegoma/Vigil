@@ -31,7 +31,11 @@ def make_fsm(
     counter = itertools.count(1)
     return IncidentStateMachine(
         [
-            ConvulsionDetector(ConvulsionConfig()),
+            # FSM mechanics tests pin the onsets (the pre-ADR-023 10 s / 20 s tiers) so they
+            # test persistence logic, not the deployed default (25 s, ADR-023).
+            ConvulsionDetector(
+                ConvulsionConfig(onset_seconds=10.0, single_region_onset_seconds=20.0)
+            ),
             VomitingDetector(VomitingConfig(mode=vomiting_mode)),
         ],
         get_profile("dog"),

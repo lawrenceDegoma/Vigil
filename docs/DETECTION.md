@@ -290,5 +290,5 @@ With ADR-022 deployed (rules `334bf782`), the Pi raised **6 urgent convulsion in
 | 25 s | 25.4 s | **0** | 0; synthetic 5/5 |
 | 30 s | — | 0 | — |
 
-**Limits.** The onset was chosen on the same clips it is evaluated on, so it is fitted to them; a longer scratch or a sustained belly rub could still alert. The belly rub not alerting at 25 s is because its rhythm is intermittent, not because contact is recognised. A seizure shorter than the onset never alerts. Decision pending (owner).
+**Limits.** The onset was chosen on the same clips it is evaluated on, so it is fitted to them; a longer scratch or a sustained belly rub could still alert. The belly rub not alerting at 25 s is because its rhythm is intermittent, not because contact is recognised. A seizure shorter than the onset never alerts. **Decision: ADR-023 adopts 25 s** (owner, 2026-11-24).
 

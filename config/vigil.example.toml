@@ -46,7 +46,7 @@ cell_hz_tolerance = 0.75   # ... at the window's dominant frequency (+/- Hz)
 [detectors.convulsion]
 mode = "alert"             # off | shadow | alert
 threshold = 0.5
-onset_seconds = 10.0       # persistence before an incident opens (DESIGN suggests 10–15 s)
+onset_seconds = 25.0       # persistence before an incident opens (ADR-023; DESIGN suggested 10–15 s)
 min_active_ratio = 0.6
 active_ratio_ramp = [0.5, 0.9]
 activity_ramp = [0.006, 0.03]
@@ -60,8 +60,8 @@ max_region_area = 0.6
 slow_rhythm_hz = 1.8          # clear rhythm slower than this (Hz) is evidence against; 0 disables (ADR-021)
 slow_rhythm_min_periodicity = 0.3
 multi_region_extent = 0.8      # rhythm spread vs body size counted as multi-limb (ADR-022)
-multi_region_min_share = 0.3   # share of active windows that must be multi-limb for the 10 s onset
-single_region_onset_seconds = 20.0  # otherwise (one spot, e.g. a scratching leg) wait this long
+multi_region_min_share = 0.3   # share of active windows that must be multi-limb for onset_seconds
+single_region_onset_seconds = 25.0  # otherwise wait this long; equal to onset_seconds = tier off (ADR-023)
 
 [detectors.vomiting]       # EXPERIMENTAL — shadow mode by default (ADR-005)
 mode = "shadow"

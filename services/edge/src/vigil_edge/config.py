@@ -137,7 +137,7 @@ class ConvulsionConfig:
 
     mode: DetectorMode = DetectorMode.ALERT
     threshold: float = 0.5  # window score needed to count as active
-    onset_seconds: float = 10.0  # persistence before an incident opens
+    onset_seconds: float = 25.0  # persistence before an incident opens (ADR-023; was 10)
     min_active_ratio: float = 0.6  # fraction of windows active during the onset period
     # Score ramps: (value giving 0, value giving 1)
     active_ratio_ramp: Range = (0.5, 0.9)
@@ -159,9 +159,11 @@ class ConvulsionConfig:
     # moving body (one scratching leg stays compact; paddling limbs span the body).
     # A candidate confirms after onset_seconds if >= multi_region_min_share of its
     # active windows are strong, otherwise only after single_region_onset_seconds.
+    # ADR-023 sets both onsets to 25 s: close to the camera, a sitting scratch looked
+    # multi-limb (DETECTION §5.7), so the shorter tier is disabled by default.
     multi_region_extent: float = 0.8
     multi_region_min_share: float = 0.3
-    single_region_onset_seconds: float = 20.0
+    single_region_onset_seconds: float = 25.0  # ADR-023: equal to onset_seconds (tier off)
 
     def __post_init__(self) -> None:
         _validate_detector("convulsion", self.threshold, self.onset_seconds, self.min_active_ratio)
