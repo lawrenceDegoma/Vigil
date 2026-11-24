@@ -261,3 +261,34 @@ Then:
 4. Collect **negative** footage too (sleeping, scratching, play, people walking through, lights switching), ideally from the eventual fixed camera position. One positive clip can show the pipeline *can* respond to a real episode. It cannot establish thresholds or reliability, and no classifier will be trained on it.
 
 `vigil evaluate data/private/` runs every video that has a `.labels.json` and reports event-level detection, false alerts per hour and latency for that dataset.
+
+### 5.7 False alerts under ADR-022 (2026-11-22 to 2026-11-24)
+
+With ADR-022 deployed (rules `334bf782`), the Pi raised **6 urgent convulsion incidents in about 61 hours**, all with mock SMS only. All are assessed from frames as false alerts; owner confirmation is pending. Clips and labels are in gitignored `data/private/pi-incidents/`.
+
+| Incident (PST) | Assessed behaviour | Dominant rhythm (median) | Strong windows | Onset tier used |
+|---|---|---|---|---|
+| 11-22 13:49 | sitting close to the camera, hind-leg scratch (two bouts) | 4.3 Hz | 76 % | 10 s |
+| 11-22 15:16 | walks in, sits close to the camera, hind-leg scratch | 4.0 Hz | 32 % | 16 s |
+| 11-23 13:31 | a person rubs his belly while he lies on his back (human contact) | 3.3 Hz | 31 % | 10 s |
+| 11-23 16:45 | lying on a cushion at the right edge, hind leg up by his head | 3.8 Hz | 39 % | 10 s |
+| 11-23 22:06 | sitting close to the camera, hind-leg scratch | 3.5 Hz | 73 % | 11 s |
+| 11-24 07:55 | sitting, then facing the camera, scratching his neck | 3.9 Hz | 67 % | 10 s |
+
+**Findings.**
+- **The spread cue fails when the subject is close to the camera.** A sitting scratch shakes the whole body, so the rhythm covers a wide area and counts as multi-limb.
+- **Rhythm frequency does not separate them.** The scratches ran at 3.5–4.7 Hz; the real seizure's first 12 s ran at 3.2–4.0 Hz.
+- **Human contact remains unhandled** (ADR-013); the belly rub ran at the seizure's frequency.
+- **Duration separates them in this data.** Every scratch bout lasted about 6–22 s; the real convulsion lasted about 68 s.
+
+**Onset sweep** (both tiers set equal; the 7 deployed false-alert clips, plus the real seizure, behaviour, fixed-vantage and synthetic sets):
+
+| Onset | Real seizure latency | Convulsion incidents on the 7 Pi false-alert clips | Other sets |
+|---|---|---|---|
+| 10 s / 20 s (deployed) | 10.5 s | 6 | 0 false alerts; synthetic 5/5 |
+| 20 s | 20.6 s | 1 (11-23 16:45) | 0; synthetic 5/5 |
+| 25 s | 25.4 s | **0** | 0; synthetic 5/5 |
+| 30 s | — | 0 | — |
+
+**Limits.** The onset was chosen on the same clips it is evaluated on, so it is fitted to them; a longer scratch or a sustained belly rub could still alert. The belly rub not alerting at 25 s is because its rhythm is intermittent, not because contact is recognised. A seizure shorter than the onset never alerts. Decision pending (owner).
+

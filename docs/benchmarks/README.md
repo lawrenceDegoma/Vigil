@@ -126,3 +126,19 @@ Same framing as run 5, with the 32x16 motion grid and per-window rhythm spread. 
 | Test clip finish (off-thread) | 1.26 s | 1.28 s | pass |
 
 ADR-022 adds no measurable cost at this scene's motion level (the window stage, which includes the rhythm spread, averages 0.86 ms per frame). The spread runs only when motion is sustained, so heavy-motion scenes cost more; the off-line worst case was 15 ms per window (DETECTION §5.6). Run 6 had less motion in view than run 3, so the 40 ms warning should be confirmed in the soak.
+
+## Soak 3 (2026-11-21 23:54 PST onward): first full 24 h, still running
+
+Deployed crop config, rules `334bf782` (ADR-022), cloud connected, heatsinks and no fan. Source: Supabase `device_health` heartbeats plus the service journal (the Pi's local DB needs sudo). Started after run 6; not restarted since.
+
+| Window | Heartbeats | Healthy | fps min | dropped | Max heartbeat gap | Temp avg / max °C | CPU avg (p95) % | Memory % |
+|---|---|---|---|---|---|---|---|---|
+| First 24 h (to 2026-11-22 23:54) | 1,438 | every one | 14.95 | 0 | 71.6 s | 63.6 / 66.6 | 66 (73) | 28.4–31.1 |
+| To 2026-11-24 12:46 (about 61 h) | 3,664 | every one | 14.94 | 0 | 71.6 s | 63.6 / **67.7** | 64 (74) | 28.4–31.1 |
+
+- **The ≥ 24 h soak requirement is met** for capture and analysis: 0 restarts, 0 errors, 0 dropped frames, camera and detector healthy in every heartbeat, cloud queue depth always 0, never offline (offline is 5 min without a heartbeat).
+- **Warnings (unchanged):** soft-throttled (≥ 60 °C) throughout; the hottest hour so far was 2026-11-23 13:00 (average 65.5 °C, peak 67.7 °C, CPU 78 %) during sustained motion near the camera. Airflow is still recommended.
+- **Memory:** flat (28.4–31.1 %) over 61 h; no sign of a leak.
+- **Disk:** recordings 1.28 GB to 1.87 GB in the last 36 h (vomiting shadow clips); root filesystem 12 % used.
+- **Detection:** **6 urgent convulsion incidents in about 61 h, all assessed as false alerts** (DETECTION §5.7). This, not the hardware, blocks enabling real SMS.
+- **Not yet done:** PI_SETUP §6 fault checklist.
