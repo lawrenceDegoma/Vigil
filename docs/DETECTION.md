@@ -264,7 +264,7 @@ Then:
 
 ### 5.7 False alerts under ADR-022 (2026-11-22 to 2026-11-24)
 
-With ADR-022 deployed (rules `334bf782`), the Pi raised **6 urgent convulsion incidents in about 61 hours**, all with mock SMS only. All are assessed from frames as false alerts; owner confirmation is pending. Clips and labels are in gitignored `data/private/pi-incidents/`.
+With ADR-022 deployed (rules `334bf782`), the Pi raised **6 urgent convulsion incidents in about 61 hours**, all with mock SMS only. All are assessed from frames as false alerts; the owner confirmed all six on 2026-11-24. Clips and labels are in gitignored `data/private/pi-incidents/`.
 
 | Incident (PST) | Assessed behaviour | Dominant rhythm (median) | Strong windows | Onset tier used |
 |---|---|---|---|---|
@@ -292,3 +292,14 @@ With ADR-022 deployed (rules `334bf782`), the Pi raised **6 urgent convulsion in
 
 **Limits.** The onset was chosen on the same clips it is evaluated on, so it is fitted to them; a longer scratch or a sustained belly rub could still alert. The belly rub not alerting at 25 s is because its rhythm is intermittent, not because contact is recognised. A seizure shorter than the onset never alerts. **Decision: ADR-023 adopts 25 s** (owner, 2026-11-24).
 
+
+### 5.8 First false alert under ADR-023 (2026-11-25 06:16 PST)
+
+About 17 hours after ADR-023 was deployed (rules `d200d123`), the Pi raised an urgent convulsion incident (mock SMS only). The owner confirmed it as a false alert on 2026-11-26.
+
+- **Behaviour:** the dog sits curled up close to the camera, head down by a cardboard box, scratching beside his head with a hind leg. The rhythm was continuous at 3.5–3.9 Hz from about 7 s to 36 s of the clip, about 29–30 s with no pause. Then he stands and walks away.
+- **Replay** with the deployed settings reproduces it: the incident opens at 29.2 s (onset + 25.3 s). Spread was 0.72 (below the strong threshold, which no longer matters with both tiers at 25 s).
+- **Comparison with the real episode** (handheld recording, same rules): its first ~20 s ran at a steady 3.4–4.0 Hz, just like this scratch. After that its dominant frequency wandered between about 2.1 and 4.5 Hz. That is one episode, so it is an observation, not a usable cue, and nothing in the first 25 s separates the two.
+- **Rate:** 1 false alert in about 56 h under ADR-023 (to 2026-11-26 21:16 PST), against 6 in about 61 h under ADR-022.
+
+**Status:** no change. §5.7 predicted that a scratch longer than the onset would still alert. Removing this one would need an onset above about 30 s, which delays alerts on a real episode by the same amount; that has not been evaluated. Owner decision pending; the recommendation is to keep 25 s and collect more days of data first.
