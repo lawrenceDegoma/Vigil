@@ -1,5 +1,12 @@
 import { assert, assertEquals, assertMatch, assertStringIncludes } from "jsr:@std/assert@1.0.13";
-import { localTime, maskPhone, type MessageContext, plain, renderMessage } from "./messages.ts";
+import {
+  localTime,
+  maskPhone,
+  type MessageContext,
+  OPT_IN_CONFIRMATION,
+  plain,
+  renderMessage,
+} from "./messages.ts";
 
 const now = new Date("2026-11-20T05:45:00Z"); // 9:45 PM, Nov 19, in Los Angeles
 const base: MessageContext = {
@@ -110,4 +117,25 @@ Deno.test("test alert wording: clearly a test, opt-out included, one SMS segment
   assert(!/seizure|vomit|urgent/i.test(m));
   const noDevice = renderMessage({ ...base, kind: "test_alert", deviceName: null });
   assert(noDevice.startsWith("Vigil TEST at 9:45 PM:"));
+});
+
+Deno.test("opt-in confirmation: names the program, rates, HELP and STOP, one segment", () => {
+  const m = renderMessage({
+    ...base,
+    kind: "opt_in_confirmation",
+    signalType: null,
+    severity: null,
+    incidentId: null,
+    startedAt: null,
+    deviceName: null,
+    subjectName: null,
+  });
+  assertEquals(m, OPT_IN_CONFIRMATION);
+  assert(m.startsWith("Vigil Alerts:"));
+  assertStringIncludes(m, "Msg & data rates may apply.");
+  assertStringIncludes(m, "Reply STOP to opt out, HELP for help.");
+  assertStringIncludes(m, "Msg freq varies.");
+  assertMatch(m, GSM_SAFE);
+  assert(m.length <= 160, `${m.length} characters`);
+  assert(!/seizure|vomit|urgent|http/i.test(m));
 });

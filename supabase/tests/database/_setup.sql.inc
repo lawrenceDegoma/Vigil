@@ -27,6 +27,9 @@ insert into public.notification_contacts (id, membership_id, phone_e164) values
   ('33333333-0000-0000-0000-0000000000f1', '22222222-0000-0000-0000-0000000000f1', '+15555550102'),
   ('33333333-0000-0000-0000-0000000000f2', '22222222-0000-0000-0000-0000000000f2', '+15555550103'),
   ('33333333-0000-0000-0000-0000000000a2', '22222222-0000-0000-0000-0000000000a2', '+15555550201');
+-- Adding a number queues its enrollment confirmation (05_opt_in.test.sql tests that);
+-- clear the fixture's own so other tests start with no notifications.
+delete from public.notifications where kind = 'opt_in_confirmation';
 
 insert into public.devices (id, household_id, device_key, name, subject_name, token_hash) values
   ('44444444-0000-0000-0000-000000000001', '11111111-0000-0000-0000-000000000001', 'pi-livingroom', 'Living room', 'Rex', encode(extensions.digest('tok-1', 'sha256'), 'hex')),

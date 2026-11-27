@@ -6,6 +6,7 @@
 import { assert, assertEquals, assertMatch } from "jsr:@std/assert@1.0.13";
 import postgres from "npm:postgres@3.4.9";
 import { newDeviceToken, sha256Hex } from "../../functions/_shared/auth.ts";
+import { OPT_IN_CONFIRMATION } from "../../functions/_shared/messages.ts";
 
 const DB_URL = Deno.env.get("E2E_DB_URL") ??
   "postgresql://postgres:postgres@127.0.0.1:54322/postgres";
@@ -115,6 +116,17 @@ Deno.test({
         });
         assertEquals(badSecret.status, 401);
         await badSecret.body?.cancel();
+      });
+
+      await t.step("each added number got one enrollment confirmation (mock)", async () => {
+        // setup() added three numbers; the dispatch run in the previous step sent them.
+        const rows = await sent("opt_in_confirmation");
+        assertEquals(rows.map((r) => r.to_e164), Object.values(phones).sort());
+        for (const r of rows) {
+          assertEquals(r.status, "sent");
+          assertEquals(r.provider, "mock");
+          assertEquals(r.body, OPT_IN_CONFIRMATION);
+        }
       });
 
       await t.step("urgent incident texts every family phone immediately", async () => {

@@ -12,7 +12,8 @@ export type NotificationKind =
   | "incident_reminder"
   | "device_offline"
   | "device_recovered"
-  | "test_alert";
+  | "test_alert"
+  | "opt_in_confirmation";
 
 export interface MessageContext {
   kind: NotificationKind;
@@ -36,6 +37,11 @@ const OBSERVATION: Record<SignalType, string> = {
   fall: "a possible fall",
   prolonged_inactivity: "unusually long inactivity",
 };
+
+/** Sent once to a number when it is added or re-enabled. Keep in sync with site/opt-in.html. */
+export const OPT_IN_CONFIRMATION = "Vigil Alerts: you're signed up for pet-monitor alerts from " +
+  "your household. Msg freq varies. Msg & data rates may apply. " +
+  "Reply STOP to opt out, HELP for help.";
 
 const LATE_AFTER_MS = 10 * 60 * 1000;
 
@@ -117,6 +123,10 @@ export function renderMessage(ctx: MessageContext): string {
           "Reply STOP to opt out.",
       );
     }
+    case "opt_in_confirmation":
+      // Enrollment confirmation after verbal opt-in (site/opt-in.html): program name,
+      // frequency, rates and HELP/STOP, in one SMS segment.
+      return OPT_IN_CONFIRMATION;
     case "device_recovered": {
       const since = ctx.offlineSince
         ? ` (offline since ${localTime(ctx.offlineSince, ctx.now, ctx.timezone)})`
